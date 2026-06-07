@@ -17,6 +17,8 @@ class ProductService extends Model
         'buying_price',
         'description',
         'selling_price',
+        'quantity',
+        'low_stock_threshold',
         'unit',
         'image',
         'created_by',
@@ -28,7 +30,14 @@ class ProductService extends Model
         return [
             'buying_price' => 'decimal:2',
             'selling_price' => 'decimal:2',
+            'quantity' => 'decimal:2',
+            'low_stock_threshold' => 'decimal:2',
         ];
+    }
+
+    public function isLowStock(): bool
+    {
+        return $this->quantity !== null && $this->quantity <= $this->low_stock_threshold;
     }
 
     public function business(): BelongsTo

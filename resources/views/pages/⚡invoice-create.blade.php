@@ -323,6 +323,7 @@ new #[Title('Create Invoice')] class extends Component {
         $invoice = Invoice::where('business_id', auth()->user()->business->id)->findOrFail($this->editingId);
 
         $last = \App\Models\Payment::whereHas('invoice', fn($q) => $q->where('business_id', auth()->user()->business->id))
+            ->whereNotNull('receipt_number')
             ->orderBy('id', 'desc')
             ->first();
         $next = $last ? ((int) substr($last->receipt_number ?? 'RCT-0000', -4)) + 1 : 1;

@@ -13,12 +13,14 @@
             $quotationsCount = $business ? \App\Models\Quotation::where('business_id', $business->id)->count() : 0;
             $invoicesCount = $business ? \App\Models\Invoice::where('business_id', $business->id)->count() : 0;
             $pendingInvoices = $business ? \App\Models\Invoice::where('business_id', $business->id)->whereIn('status', ['draft', 'sent'])->count() : 0;
+            $pendingCustomerRequests = $business ? \App\Models\CustomerQuotation::where('business_id', $business->id)->where('status', 'pending')->count() : 0;
             $recentQuotations = $business ? \App\Models\Quotation::where('business_id', $business->id)->with('customer')->latest()->take(5)->get() : collect();
             $recentInvoices = $business ? \App\Models\Invoice::where('business_id', $business->id)->with('customer')->latest()->take(5)->get() : collect();
+            $recentCustomerRequests = $business ? \App\Models\CustomerQuotation::where('business_id', $business->id)->with('fabric')->latest()->take(5)->get() : collect();
         @endphp
 
         {{-- Stats Cards --}}
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex items-center justify-between">
                     <flux:heading size="sm" class="text-neutral-500">{{ __('Customers') }}</flux:heading>
@@ -60,7 +62,19 @@
                     </div>
                 </div>
                 <p class="mt-3 text-3xl font-bold text-neutral-900 dark:text-white">{{ $pendingInvoices }}</p>
-                <flux:button variant="ghost" size="sm" :href="route('invoices')" wire:navigate class="mt-2 px-0 text-xs">{{ __('View invoices') }} &rarr;</flux:button>
+                    <flux:button variant="ghost" size="sm" :href="route('invoices')" wire:navigate class="mt-2 px-0 text-xs">{{ __('View invoices') }} &rarr;</flux:button>
+            </div>
+
+            {{-- Customer Requests --}}
+            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="flex items-center justify-between">
+                    <flux:heading size="sm" class="text-neutral-500">{{ __('Customer Requests') }}</flux:heading>
+                    <div class="flex size-9 items-center justify-center rounded-lg bg-rose-50 dark:bg-rose-900/20">
+                        <svg class="size-5 text-rose-600 dark:text-rose-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    </div>
+                </div>
+                <p class="mt-3 text-3xl font-bold text-neutral-900 dark:text-white">{{ $pendingCustomerRequests }}</p>
+                <flux:button variant="ghost" size="sm" :href="route('customer-quotations')" wire:navigate class="mt-2 px-0 text-xs">{{ __('View requests') }} &rarr;</flux:button>
             </div>
         </div>
 
@@ -83,6 +97,10 @@
                 <flux:button variant="primary" color="sky" :href="route('inventory')" wire:navigate>
                     <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
                     {{ __('Add to Inventory') }}
+                </flux:button>
+                <flux:button variant="primary" color="pink" :href="route('fabrics.index')" wire:navigate>
+                    <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+                    {{ __('Browse Fabrics') }}
                 </flux:button>
             </div>
         </div>
@@ -138,6 +156,34 @@
                                 <div class="ml-3 flex items-center gap-3">
                                     <span class="text-sm font-semibold text-neutral-900 dark:text-white">UGX {{ number_format($inv->total, 0) }}</span>
                                     <flux:badge :icon="match($inv->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'paid' => 'check-circle', 'overdue' => 'exclamation-triangle', default => 'clock' }" :variant="match($inv->status) { 'draft' => 'ghost', 'sent' => 'primary', 'paid' => 'success', 'overdue' => 'warning', default => 'ghost' }" size="sm" class="shrink-0">{{ ucfirst($inv->status) }}</flux:badge>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+
+            {{-- Recent Customer Requests --}}
+            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="mb-3 flex items-center justify-between">
+                    <flux:heading size="sm">{{ __('Recent Customer Requests') }}</flux:heading>
+                    <flux:button variant="ghost" size="sm" :href="route('customer-quotations')" wire:navigate class="px-0 text-xs">{{ __('View all') }} &rarr;</flux:button>
+                </div>
+                @if ($recentCustomerRequests->isEmpty())
+                    <div class="py-8 text-center">
+                        <p class="text-sm text-neutral-400">{{ __('No customer requests yet.') }}</p>
+                    </div>
+                @else
+                    <div class="divide-y divide-neutral-100 dark:divide-neutral-800">
+                        @foreach ($recentCustomerRequests as $cr)
+                            <div class="flex items-center justify-between py-2.5">
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-sm font-medium text-neutral-900 dark:text-white">{{ $cr->customer_name }}</p>
+                                    <p class="truncate text-xs text-neutral-500">{{ $cr->fabric?->name ?? '—' }} &middot; {{ number_format($cr->length_meters, 1) }}m &middot; {{ $cr->created_at->format('d M Y') }}</p>
+                                </div>
+                                <div class="ml-3 flex items-center gap-3">
+                                    <span class="text-sm font-semibold text-neutral-900 dark:text-white">UGX {{ number_format($cr->total_price, 0) }}</span>
+                                    <flux:badge :variant="$cr->status === 'pending' ? 'warning' : ($cr->status === 'responded' ? 'success' : 'ghost')" size="sm" class="shrink-0">{{ ucfirst($cr->status) }}</flux:badge>
                                 </div>
                             </div>
                         @endforeach

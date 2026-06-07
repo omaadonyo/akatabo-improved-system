@@ -50,6 +50,10 @@
                     <flux:sidebar.item icon="credit-card" :href="route('payments')" :current="request()->routeIs('payments')" wire:navigate>
                         {{ __('Payments') }}
                     </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="document-text" :href="route('customer-quotations')" :current="request()->routeIs('customer-quotations')" wire:navigate>
+                        {{ __('Customer Requests') }}
+                    </flux:sidebar.item>
                 </flux:sidebar.group>
 
                 <flux:sidebar.group :heading="__('Settings')" class="grid">

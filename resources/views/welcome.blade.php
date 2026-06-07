@@ -66,6 +66,9 @@
                 <div class="mt-6 flex items-center gap-3">
                     <a href="{{ route('register') }}" class="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500">Get started</a>
                     <a href="{{ route('login') }}" class="rounded-xl border border-zinc-700 bg-zinc-800/50 px-6 py-2.5 text-sm font-semibold text-zinc-300 backdrop-blur-sm transition hover:border-zinc-600 hover:text-white">Sign in</a>
+                    <a href="{{ route('fabrics.index') }}" class="rounded-xl border border-zinc-700 bg-zinc-800/50 px-6 py-2.5 text-sm font-semibold text-amber-300 backdrop-blur-sm transition hover:border-amber-600/50 hover:text-amber-200">
+                        Browse Fabrics
+                    </a>
                 </div>
             </div>
 

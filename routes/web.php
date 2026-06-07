@@ -1,8 +1,15 @@
 <?php
 
+use App\Http\Controllers\FabricLandingController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name('home');
+
+Route::prefix('fabrics')->name('fabrics.')->group(function () {
+    Route::get('/', [FabricLandingController::class, 'index'])->name('index');
+    Route::get('/{fabric}/quote', [FabricLandingController::class, 'quote'])->name('quote');
+    Route::post('/quote', [FabricLandingController::class, 'submit'])->name('submit');
+});
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', function () {
@@ -66,6 +73,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('can:manage-users');
 
     Route::livewire('reports', 'pages::reports')->name('reports');
+
+    Route::livewire('customer-quotations', 'pages::customer-quotations')->name('customer-quotations');
 
     Route::get('/backups/{filename}', function (string $filename) {
         $path = storage_path('app/backups/' . basename($filename));

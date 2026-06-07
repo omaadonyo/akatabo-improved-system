@@ -50,6 +50,8 @@ new #[Title('Inventory')] class extends Component {
 
     public string $fabric_width = '';
 
+    public ?string $fabric_low_stock_threshold = null;
+
     public $fabric_image = null;
 
     public bool $fabric_remove_image = false;
@@ -69,6 +71,10 @@ new #[Title('Inventory')] class extends Component {
     public ?string $ps_buying_price = null;
 
     public ?string $ps_selling_price = null;
+
+    public ?string $ps_quantity = null;
+
+    public ?string $ps_low_stock_threshold = null;
 
     public string $ps_unit = '';
 
@@ -163,6 +169,7 @@ new #[Title('Inventory')] class extends Component {
         $this->fabric_buying_price = $fabric->buying_price !== null ? (string) $fabric->buying_price : null;
         $this->fabric_selling_price_per_meter = $fabric->selling_price_per_meter !== null ? (string) $fabric->selling_price_per_meter : null;
         $this->fabric_width = $fabric->width ?? '';
+        $this->fabric_low_stock_threshold = $fabric->low_stock_threshold !== null ? (string) $fabric->low_stock_threshold : null;
         $this->fabric_image = null;
         $this->fabric_remove_image = false;
         $this->showFabricModal = true;
@@ -182,6 +189,7 @@ new #[Title('Inventory')] class extends Component {
             'fabric_buying_price' => ['nullable', 'numeric', 'min:0'],
             'fabric_selling_price_per_meter' => ['nullable', 'numeric', 'min:0'],
             'fabric_width' => ['nullable', 'string', 'max:255'],
+            'fabric_low_stock_threshold' => ['nullable', 'numeric', 'min:0'],
             'fabric_image' => ['nullable', 'image', 'max:2048'],
         ]);
 
@@ -197,6 +205,7 @@ new #[Title('Inventory')] class extends Component {
             'buying_price' => $this->fabric_buying_price !== null && $this->fabric_buying_price !== '' ? (float) $this->fabric_buying_price : null,
             'selling_price_per_meter' => $this->fabric_selling_price_per_meter !== null && $this->fabric_selling_price_per_meter !== '' ? (float) $this->fabric_selling_price_per_meter : null,
             'width' => $this->fabric_width ?: null,
+            'low_stock_threshold' => $this->fabric_low_stock_threshold !== null && $this->fabric_low_stock_threshold !== '' ? (float) $this->fabric_low_stock_threshold : 10,
         ];
 
         if ($this->fabric_image) {
@@ -235,6 +244,8 @@ new #[Title('Inventory')] class extends Component {
         $this->ps_description = $product->description ?? '';
         $this->ps_buying_price = $product->buying_price !== null ? (string) $product->buying_price : null;
         $this->ps_selling_price = $product->selling_price !== null ? (string) $product->selling_price : null;
+        $this->ps_quantity = $product->quantity !== null ? (string) $product->quantity : null;
+        $this->ps_low_stock_threshold = $product->low_stock_threshold !== null ? (string) $product->low_stock_threshold : null;
         $this->ps_unit = $product->unit ?? '';
         $this->ps_image = null;
         $this->ps_remove_image = false;
@@ -250,6 +261,8 @@ new #[Title('Inventory')] class extends Component {
             'ps_description' => ['nullable', 'string', 'max:2000'],
             'ps_buying_price' => ['nullable', 'numeric', 'min:0'],
             'ps_selling_price' => ['nullable', 'numeric', 'min:0'],
+            'ps_quantity' => ['nullable', 'numeric', 'min:0'],
+            'ps_low_stock_threshold' => ['nullable', 'numeric', 'min:0'],
             'ps_unit' => ['nullable', 'string', 'max:255'],
             'ps_image' => ['nullable', 'image', 'max:2048'],
         ]);
@@ -261,6 +274,8 @@ new #[Title('Inventory')] class extends Component {
             'description' => $this->ps_description ?: null,
             'buying_price' => $this->ps_buying_price !== null && $this->ps_buying_price !== '' ? (float) $this->ps_buying_price : null,
             'selling_price' => $this->ps_selling_price !== null && $this->ps_selling_price !== '' ? (float) $this->ps_selling_price : null,
+            'quantity' => $this->ps_quantity !== null && $this->ps_quantity !== '' ? (float) $this->ps_quantity : 0,
+            'low_stock_threshold' => $this->ps_low_stock_threshold !== null && $this->ps_low_stock_threshold !== '' ? (float) $this->ps_low_stock_threshold : 10,
             'unit' => $this->ps_unit ?: null,
         ];
 
@@ -358,7 +373,7 @@ new #[Title('Inventory')] class extends Component {
             'fabricEditingId', 'fabric_roll_code', 'fabric_name', 'fabric_color',
             'fabric_supplier', 'fabric_date_received', 'fabric_claimed_meters',
             'fabric_verified_meters', 'fabric_used_meters', 'fabric_buying_price',
-            'fabric_selling_price_per_meter', 'fabric_width', 'fabric_image',
+            'fabric_selling_price_per_meter', 'fabric_width', 'fabric_low_stock_threshold', 'fabric_image',
             'fabric_remove_image',
         ]);
     }
@@ -367,7 +382,7 @@ new #[Title('Inventory')] class extends Component {
     {
         $this->reset([
             'productEditingId', 'ps_type', 'ps_name', 'ps_sku', 'ps_description',
-            'ps_buying_price', 'ps_selling_price', 'ps_unit', 'ps_image', 'ps_remove_image',
+            'ps_buying_price', 'ps_selling_price', 'ps_quantity', 'ps_low_stock_threshold', 'ps_unit', 'ps_image', 'ps_remove_image',
         ]);
     }
 
@@ -495,7 +510,11 @@ new #[Title('Inventory')] class extends Component {
                                 <br>
                                 <span class="text-zinc-500">{{ __('Used') }}:</span> {{ number_format($fabric->used_meters, 2) . 'm' }}
                                 <br>
-                                <span class="font-medium {{ $fabric->remaining_meters !== null && $fabric->remaining_meters < 1 ? 'text-red-500' : '' }}">{{ __('Remaining') }}:</span> <span class="font-medium {{ $fabric->remaining_meters !== null && $fabric->remaining_meters < 1 ? 'text-red-500' : '' }}">{{ $fabric->remaining_meters !== null ? number_format($fabric->remaining_meters, 2) . 'm' : '—' }}</span>
+                                <span class="{{ $fabric->remaining_meters !== null && $fabric->remaining_meters < 1 ? 'text-red-500' : 'text-zinc-500' }}">{{ __('Remaining') }}:</span>
+                                <span class="font-medium {{ $fabric->remaining_meters !== null && $fabric->remaining_meters < 1 ? 'text-red-500' : '' }}">{{ $fabric->remaining_meters !== null ? number_format($fabric->remaining_meters, 2) . 'm' : '—' }}</span>
+                                @if ($fabric->remaining_meters !== null && $fabric->isLowStock())
+                                    <flux:badge variant="danger" size="sm" icon="exclamation-triangle" class="mt-1">{{ __('Low') }}</flux:badge>
+                                @endif
                             </flux:table.cell>
                             <flux:table.cell align="end" class="font-medium">{{ $fabric->selling_price_per_meter ? 'UGX ' . number_format($fabric->selling_price_per_meter, 2) . '/m' : '—' }}</flux:table.cell>
                             <flux:table.cell align="end">
@@ -574,6 +593,7 @@ new #[Title('Inventory')] class extends Component {
                     <flux:table.column :sortable="true" :sorted="$sortField === 'name'" :direction="$sortField === 'name' ? $sortDirection : null" wire:click="sortBy('name')">{{ __('Name') }}</flux:table.column>
                     <flux:table.column>{{ __('Type') }}</flux:table.column>
                     <flux:table.column :sortable="true" :sorted="$sortField === 'sku'" :direction="$sortField === 'sku' ? $sortDirection : null" wire:click="sortBy('sku')">{{ __('SKU') }}</flux:table.column>
+                    <flux:table.column align="end">{{ __('Quantity') }}</flux:table.column>
                     <flux:table.column align="end">{{ __('Buying Price') }}</flux:table.column>
                     <flux:table.column align="end">{{ __('Selling Price') }}</flux:table.column>
                     <flux:table.column>{{ __('Unit') }}</flux:table.column>
@@ -599,6 +619,12 @@ new #[Title('Inventory')] class extends Component {
                                 </flux:badge>
                             </flux:table.cell>
                             <flux:table.cell class="font-mono text-xs">{{ $product->sku ?? '—' }}</flux:table.cell>
+                            <flux:table.cell align="end">
+                                <span class="font-medium {{ $product->isLowStock() ? 'text-red-500' : '' }}">{{ $product->quantity ? number_format($product->quantity, 2) : '0' }}</span>
+                                @if ($product->isLowStock())
+                                    <flux:badge variant="danger" size="sm" icon="exclamation-triangle" class="ml-1">{{ __('Low') }}</flux:badge>
+                                @endif
+                            </flux:table.cell>
                             <flux:table.cell align="end" class="font-medium">{{ $product->buying_price ? 'UGX ' . number_format($product->buying_price, 2) : '—' }}</flux:table.cell>
                             <flux:table.cell align="end" class="font-medium">{{ $product->selling_price ? 'UGX ' . number_format($product->selling_price, 2) : '—' }}</flux:table.cell>
                             <flux:table.cell>{{ $product->unit ?? '—' }}</flux:table.cell>
@@ -612,7 +638,7 @@ new #[Title('Inventory')] class extends Component {
                         </flux:table.row>
                     @empty
                         <flux:table.row>
-                            <flux:table.cell colspan="8">
+                            <flux:table.cell colspan="9">
                                 <div class="flex flex-col items-center justify-center py-12 text-center">
                                     <flux:heading class="text-zinc-500 dark:text-zinc-400">{{ __('No products or services yet') }}</flux:heading>
                                     <flux:subheading class="mt-1">{{ __('Add your first product or service.') }}</flux:subheading>
@@ -699,6 +725,12 @@ new #[Title('Inventory')] class extends Component {
                     <flux:input wire:model="fabric_selling_price_per_meter" type="number" step="0.01" min="0" placeholder="e.g. 12.50" />
                     <flux:error name="fabric_selling_price_per_meter" />
                 </flux:field>
+
+                <flux:field>
+                    <flux:label>{{ __('Low Stock Threshold (m)') }}</flux:label>
+                    <flux:input wire:model="fabric_low_stock_threshold" type="number" step="0.01" min="0" placeholder="e.g. 10" />
+                    <flux:error name="fabric_low_stock_threshold" />
+                </flux:field>
             </div>
 
             <flux:field>
@@ -751,6 +783,7 @@ new #[Title('Inventory')] class extends Component {
                 <div><flux:label>{{ __('Verified Meters') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->verified_meters ?? '—' }}</p></div>
                 <div><flux:label>{{ __('Used Meters') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->used_meters ?? '—' }}</p></div>
                 <div><flux:label>{{ __('Remaining Meters') }}</flux:label><p class="mt-1 text-sm font-medium {{ $viewingFabric?->remaining_meters !== null && $viewingFabric->remaining_meters < 1 ? 'text-red-500' : 'text-neutral-900 dark:text-white' }}">{{ $viewingFabric?->remaining_meters !== null ? number_format($viewingFabric->remaining_meters, 2) . 'm' : '—' }}</p></div>
+                <div><flux:label>{{ __('Low Threshold') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->low_stock_threshold ? number_format($viewingFabric->low_stock_threshold, 2) . 'm' : '—' }}</p></div>
                 <div><flux:label>{{ __('Buying Price') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->buying_price ? 'UGX ' . number_format($viewingFabric->buying_price, 2) : '—' }}</p></div>
                 <div><flux:label>{{ __('Selling Price / m') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->selling_price_per_meter ? 'UGX ' . number_format($viewingFabric->selling_price_per_meter, 2) : '—' }}</p></div>
             </div>
@@ -810,6 +843,18 @@ new #[Title('Inventory')] class extends Component {
                     <flux:input wire:model="ps_selling_price" type="number" step="0.01" min="0" placeholder="e.g. 500" />
                     <flux:error name="ps_selling_price" />
                 </flux:field>
+
+                <flux:field>
+                    <flux:label>{{ __('Quantity') }}</flux:label>
+                    <flux:input wire:model="ps_quantity" type="number" step="0.01" min="0" placeholder="e.g. 50" />
+                    <flux:error name="ps_quantity" />
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>{{ __('Low Stock Threshold') }}</flux:label>
+                    <flux:input wire:model="ps_low_stock_threshold" type="number" step="0.01" min="0" placeholder="e.g. 10" />
+                    <flux:error name="ps_low_stock_threshold" />
+                </flux:field>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
@@ -864,6 +909,8 @@ new #[Title('Inventory')] class extends Component {
             <div class="grid grid-cols-2 gap-4">
                 <div><flux:label>{{ __('SKU') }}</flux:label><p class="mt-1 text-sm font-mono font-medium text-neutral-900 dark:text-white">{{ $viewingProduct?->sku ?? '—' }}</p></div>
                 <div><flux:label>{{ __('Unit') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingProduct?->unit ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Quantity') }}</flux:label><p class="mt-1 text-sm font-medium {{ $viewingProduct?->isLowStock() ? 'text-red-500' : 'text-neutral-900 dark:text-white' }}">{{ $viewingProduct?->quantity !== null ? number_format($viewingProduct->quantity, 2) : '0' }}</p></div>
+                <div><flux:label>{{ __('Low Threshold') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingProduct?->low_stock_threshold ? number_format($viewingProduct->low_stock_threshold, 2) : '10' }}</p></div>
                 <div><flux:label>{{ __('Buying Price') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingProduct?->buying_price ? 'UGX ' . number_format($viewingProduct->buying_price, 2) : '—' }}</p></div>
                 <div><flux:label>{{ __('Selling Price') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingProduct?->selling_price ? 'UGX ' . number_format($viewingProduct->selling_price, 2) : '—' }}</p></div>
             </div>
