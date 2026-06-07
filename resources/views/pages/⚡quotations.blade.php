@@ -16,9 +16,12 @@ new #[Title('Quotations')] class extends Component {
 
     public $viewingQuotation = null;
 
+    public bool $showViewQuotationModal = false;
+
     public function viewQuotation(Quotation $quotation): void
     {
         $this->viewingQuotation = $quotation->load('items', 'customer');
+        $this->showViewQuotationModal = true;
     }
 
     public function delete(Quotation $quotation): void
@@ -175,7 +178,7 @@ new #[Title('Quotations')] class extends Component {
     </div>
 
     {{-- View Quotation Modal --}}
-    <flux:modal wire:model="viewingQuotation" class="max-w-2xl">
+    <flux:modal wire:model="showViewQuotationModal" class="max-w-2xl">
         <div class="space-y-6">
             <div class="flex items-start justify-between">
                 <div>

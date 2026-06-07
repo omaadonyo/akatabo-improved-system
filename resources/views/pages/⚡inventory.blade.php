@@ -373,23 +373,32 @@ new #[Title('Inventory')] class extends Component {
 
     public $viewingFabric = null;
 
+    public bool $showViewFabricModal = false;
+
     public $viewingProduct = null;
 
+    public bool $showViewProductModal = false;
+
     public $viewingOfficeRent = null;
+
+    public bool $showViewOfficeRentModal = false;
 
     public function viewFabric(Fabric $fabric): void
     {
         $this->viewingFabric = $fabric;
+        $this->showViewFabricModal = true;
     }
 
     public function viewProduct(ProductService $product): void
     {
         $this->viewingProduct = $product;
+        $this->showViewProductModal = true;
     }
 
     public function viewOfficeRent(ProductService $rental): void
     {
         $this->viewingOfficeRent = $rental;
+        $this->showViewOfficeRentModal = true;
     }
 
     private function resetOfficeRentForm(): void
@@ -727,7 +736,7 @@ new #[Title('Inventory')] class extends Component {
     </flux:modal>
 
     {{-- View Fabric Modal --}}
-    <flux:modal wire:model="viewingFabric" class="max-w-2xl">
+    <flux:modal wire:model="showViewFabricModal" class="max-w-2xl">
         <div class="space-y-6">
             <div>
                 <flux:heading size="lg">{{ $viewingFabric?->fabric_name }}</flux:heading>
@@ -846,7 +855,7 @@ new #[Title('Inventory')] class extends Component {
     </flux:modal>
 
     {{-- View Product / Service Modal --}}
-    <flux:modal wire:model="viewingProduct" class="max-w-lg">
+    <flux:modal wire:model="showViewProductModal" class="max-w-lg">
         <div class="space-y-6">
             <div>
                 <flux:heading size="lg">{{ $viewingProduct?->name }}</flux:heading>
@@ -937,7 +946,7 @@ new #[Title('Inventory')] class extends Component {
     </flux:modal>
 
     {{-- View Office Rental Modal --}}
-    <flux:modal wire:model="viewingOfficeRent" class="max-w-lg">
+    <flux:modal wire:model="showViewOfficeRentModal" class="max-w-lg">
         <div class="space-y-6">
             <div>
                 <flux:heading size="lg">{{ $viewingOfficeRent?->name }}</flux:heading>

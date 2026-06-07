@@ -26,6 +26,8 @@ new #[Title('Customers')] class extends Component {
 
     public $viewingCustomer = null;
 
+    public bool $showViewCustomerModal = false;
+
     public string $name = '';
 
     public string $email = '';
@@ -65,6 +67,7 @@ new #[Title('Customers')] class extends Component {
     public function viewCustomer(Customer $customer): void
     {
         $this->viewingCustomer = $customer;
+        $this->showViewCustomerModal = true;
     }
 
     public function edit(Customer $customer): void
@@ -199,7 +202,7 @@ new #[Title('Customers')] class extends Component {
         </flux:table>
     </div>
 
-    <flux:modal wire:model="viewingCustomer" class="max-w-lg">
+    <flux:modal wire:model="showViewCustomerModal" class="max-w-lg">
         <div class="space-y-6">
             <div>
                 <flux:heading size="lg">{{ $viewingCustomer?->name }}</flux:heading>

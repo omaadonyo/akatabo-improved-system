@@ -14,9 +14,12 @@ new #[Title('Payments')] class extends Component {
 
     public $viewingPayment = null;
 
+    public bool $showViewPaymentModal = false;
+
     public function viewPayment(Payment $payment): void
     {
         $this->viewingPayment = $payment;
+        $this->showViewPaymentModal = true;
     }
 
     public function delete(Payment $payment): void
@@ -109,7 +112,7 @@ new #[Title('Payments')] class extends Component {
         {{ $payments->links() }}
     </div>
 
-    <flux:modal wire:model="viewingPayment" class="max-w-lg">
+    <flux:modal wire:model="showViewPaymentModal" class="max-w-lg">
         <div class="space-y-6">
             <div>
                 <flux:heading size="lg">{{ __('Receipt') }} {{ $viewingPayment?->receipt_number }}</flux:heading>

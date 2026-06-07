@@ -16,9 +16,12 @@ new #[Title('Invoices')] class extends Component {
 
     public $viewingInvoice = null;
 
+    public bool $showViewInvoiceModal = false;
+
     public function viewInvoice(Invoice $invoice): void
     {
         $this->viewingInvoice = $invoice->load('items', 'payments', 'customer');
+        $this->showViewInvoiceModal = true;
     }
 
     public function delete(Invoice $invoice): void
@@ -130,7 +133,7 @@ new #[Title('Invoices')] class extends Component {
     </div>
 
     {{-- View Invoice Modal --}}
-    <flux:modal wire:model="viewingInvoice" class="max-w-2xl">
+    <flux:modal wire:model="showViewInvoiceModal" class="max-w-2xl">
         <div class="space-y-6">
             <div class="flex items-start justify-between">
                 <div>

@@ -28,9 +28,12 @@ new #[Title('Users')] class extends Component {
 
     public $viewingUser = null;
 
+    public bool $showViewUserModal = false;
+
     public function viewUser(User $user): void
     {
         $this->viewingUser = $user;
+        $this->showViewUserModal = true;
     }
 
     public function mount(): void
@@ -182,7 +185,7 @@ new #[Title('Users')] class extends Component {
         {{ $this->users()->links() }}
     </div>
 
-    <flux:modal wire:model="viewingUser" class="max-w-lg">
+    <flux:modal wire:model="showViewUserModal" class="max-w-lg">
         <div class="space-y-6">
             <div>
                 <flux:heading size="lg">{{ $viewingUser?->name }}</flux:heading>
