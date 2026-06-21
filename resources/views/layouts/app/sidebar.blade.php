@@ -35,6 +35,9 @@
                         <flux:sidebar.item icon="user-group" :href="route('users')" :current="request()->routeIs('users')" wire:navigate>
                             {{ __('Users') }}
                         </flux:sidebar.item>
+                        <flux:sidebar.item icon="clipboard-document-list" :href="route('activity-logs')" :current="request()->routeIs('activity-logs')" wire:navigate>
+                            {{ __('Activity Logs') }}
+                        </flux:sidebar.item>
                     @endcan
                 </flux:sidebar.group>
 
@@ -91,6 +94,37 @@
         <!-- Mobile User Menu -->
         <flux:header class="lg:hidden">
             <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
+
+            @php $biz = activeBusiness(); $bizList = auth()->user()->businesses; @endphp
+            <flux:dropdown position="bottom" align="start">
+                <flux:button variant="ghost" class="cursor-pointer" size="sm">
+                    <flux:icon name="building" variant="micro" class="size-3.5" />
+                    <span class="max-w-24 truncate">{{ $biz?->name ?? __('No business') }}</span>
+                </flux:button>
+
+                <flux:menu>
+                    @foreach ($bizList as $b)
+                        <form method="POST" action="{{ route('business.switch', $b) }}">
+                            @csrf
+                            <flux:menu.item as="button" type="submit" class="w-full cursor-pointer">
+                                <div class="flex items-center gap-2">
+                                    <div class="flex size-5 items-center justify-center rounded bg-neutral-200 text-[10px] font-semibold dark:bg-neutral-700">
+                                        {{ substr($b->name, 0, 1) }}
+                                    </div>
+                                    <span>{{ $b->name }}</span>
+                                    @if ($b->id === activeBusinessId())
+                                        <flux:icon name="check" variant="micro" class="ms-auto text-primary-500" />
+                                    @endif
+                                </div>
+                            </flux:menu.item>
+                        </form>
+                    @endforeach
+                    <flux:menu.separator />
+                    <flux:menu.item :href="route('onboarding', ['add' => 1])" icon="plus" wire:navigate>
+                        {{ __('Add Business') }}
+                    </flux:menu.item>
+                </flux:menu>
+            </flux:dropdown>
 
             <flux:spacer />
 
@@ -152,6 +186,38 @@
         <!-- Desktop Header -->
         <flux:header class="hidden lg:flex">
             <flux:sidebar.toggle icon="bars-2" inset="left" />
+
+            @php $biz = activeBusiness(); $bizList = auth()->user()->businesses; @endphp
+            <flux:dropdown position="bottom" align="start">
+                <flux:button variant="ghost" class="cursor-pointer" size="sm">
+                    <flux:icon name="building" variant="micro" class="size-3.5" />
+                    <span>{{ $biz?->name ?? __('No business') }}</span>
+                </flux:button>
+
+                <flux:menu>
+                    @foreach ($bizList as $b)
+                        <form method="POST" action="{{ route('business.switch', $b) }}">
+                            @csrf
+                            <flux:menu.item as="button" type="submit" class="w-full cursor-pointer">
+                                <div class="flex items-center gap-2">
+                                    <div class="flex size-5 items-center justify-center rounded bg-neutral-200 text-[10px] font-semibold dark:bg-neutral-700">
+                                        {{ substr($b->name, 0, 1) }}
+                                    </div>
+                                    <span>{{ $b->name }}</span>
+                                    @if ($b->id === activeBusinessId())
+                                        <flux:icon name="check" variant="micro" class="ms-auto text-primary-500" />
+                                    @endif
+                                </div>
+                            </flux:menu.item>
+                        </form>
+                    @endforeach
+                    <flux:menu.separator />
+                    <flux:menu.item :href="route('onboarding', ['add' => 1])" icon="plus" wire:navigate>
+                        {{ __('Add Business') }}
+                    </flux:menu.item>
+                </flux:menu>
+            </flux:dropdown>
+
             <flux:spacer />
         </flux:header>
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ActivityLog;
 use App\Models\Invoice;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Flux\Flux;
@@ -26,6 +27,10 @@ new #[Title('Invoices')] class extends Component {
 
     public function delete(Invoice $invoice): void
     {
+        ActivityLog::log('deleted', 'Invoice ' . $invoice->invoice_number . ' deleted', [
+            'invoice_id' => $invoice->id,
+            'invoice_number' => $invoice->invoice_number,
+        ]);
         $invoice->items()->delete();
         $invoice->delete();
         Flux::toast(variant: 'success', text: __('Invoice deleted.'));
@@ -42,6 +47,71 @@ new #[Title('Invoices')] class extends Component {
             $invoice->invoice_number . '.pdf'
         );
     }
+
+    public function exportAllPdf()
+    {
+        $businessId = activeBusinessId();
+        $invoices = Invoice::where('business_id', $businessId)
+            ->when($this->search, fn($q) => $q->where(function($q) {
+                $q->where('invoice_number', 'like', '%'.$this->search.'%')
+                  ->orWhereHas('customer', fn($cq) => $cq->where('name', 'like', '%'.$this->search.'%'));
+            }))
+            ->with('customer')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $pdf = Pdf::loadView('pdf.invoices-list', [
+            'invoices' => $invoices,
+            'business' => activeBusiness(),
+        ]);
+
+        return response()->streamDownload(
+            fn () => print($pdf->output()),
+            'invoices-' . now()->format('Y-m-d') . '.pdf'
+        );
+    }
+
+    public function exportExcel()
+    {
+        $businessId = activeBusinessId();
+        $invoices = Invoice::where('business_id', $businessId)
+            ->when($this->search, fn($q) => $q->where(function($q) {
+                $q->where('invoice_number', 'like', '%'.$this->search.'%')
+                  ->orWhereHas('customer', fn($cq) => $cq->where('name', 'like', '%'.$this->search.'%'));
+            }))
+            ->with('customer')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="invoices-' . now()->format('Y-m-d') . '.csv"',
+        ];
+
+        $callback = function () use ($invoices) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Number', 'Customer', 'Issue Date', 'Due Date', 'Subtotal', 'Discount', 'Tax', 'Total', 'Paid', 'Status']);
+
+            foreach ($invoices as $inv) {
+                fputcsv($handle, [
+                    $inv->invoice_number,
+                    $inv->customer?->name ?? 'Walk-in',
+                    $inv->issue_date->format('Y-m-d'),
+                    $inv->due_date?->format('Y-m-d') ?? '',
+                    number_format($inv->subtotal, 2),
+                    number_format($inv->discount_amount, 2),
+                    number_format($inv->tax_amount, 2),
+                    number_format($inv->total, 2),
+                    number_format($inv->paid_amount, 2),
+                    $inv->status,
+                ]);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
 }; ?>
 
 <div class="mx-auto" style="width: 80%;">
@@ -56,12 +126,20 @@ new #[Title('Invoices')] class extends Component {
         </flux:button>
     </div>
 
-    <div class="mt-6">
+    <div class="mt-6 flex items-center justify-between">
         <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass" :placeholder="__('Search invoices...')" clearable class="w-72" />
+        <div class="flex items-center gap-2">
+            <flux:button wire:click="exportAllPdf" variant="ghost" icon="arrow-down-tray" class="text-violet-600! hover:text-violet-800! dark:text-violet-400! dark:hover:text-violet-300! cursor-pointer">
+                {{ __('PDF') }}
+            </flux:button>
+            <flux:button wire:click="exportExcel" variant="ghost" icon="document-arrow-down" class="text-emerald-600! hover:text-emerald-800! dark:text-emerald-400! dark:hover:text-emerald-300! cursor-pointer">
+                {{ __('Excel') }}
+            </flux:button>
+        </div>
     </div>
 
     <div class="mt-4">
-        <flux:table :paginate="Invoice::where('business_id', auth()->user()->business->id)
+        <flux:table :paginate="Invoice::where('business_id', activeBusinessId())
             ->when($this->search, fn($q) => $q->where(function($q) {
                 $q->where('invoice_number', 'like', '%'.$this->search.'%')
                   ->orWhereHas('customer', fn($cq) => $cq->where('name', 'like', '%'.$this->search.'%'));
@@ -80,7 +158,7 @@ new #[Title('Invoices')] class extends Component {
             </flux:table.columns>
 
             <flux:table.rows>
-                @forelse (Invoice::where('business_id', auth()->user()->business->id)
+                @forelse (Invoice::where('business_id', activeBusinessId())
                     ->when($this->search, fn($q) => $q->where(function($q) {
                         $q->where('invoice_number', 'like', '%'.$this->search.'%')
                           ->orWhereHas('customer', fn($cq) => $cq->where('name', 'like', '%'.$this->search.'%'));
@@ -103,7 +181,18 @@ new #[Title('Invoices')] class extends Component {
                             @endif
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:badge :icon="match($invoice->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'paid' => 'check-circle', 'overdue' => 'exclamation-triangle', 'cancelled' => 'x-circle', 'partial' => 'adjustments-horizontal', default => 'clock' }" :variant="match($invoice->status) { 'draft' => 'ghost', 'sent' => 'primary', 'paid' => 'success', 'overdue' => 'warning', 'cancelled' => 'danger', 'partial' => 'warning', default => 'ghost' }" size="sm">
+                            @php
+                                $invStyle = match($invoice->status) {
+                                    'draft' => ['color' => 'neutral', 'icon' => 'clock', 'variant' => 'solid'],
+                                    'sent' => ['color' => 'blue', 'icon' => 'paper-airplane', 'variant' => 'primary'],
+                                    'paid' => ['color' => 'emerald', 'icon' => 'check-circle', 'variant' => 'success'],
+                                    'overdue' => ['color' => 'amber', 'icon' => 'exclamation-triangle', 'variant' => 'warning'],
+                                    'cancelled' => ['color' => 'red', 'icon' => 'x-circle', 'variant' => 'danger'],
+                                    'partial' => ['color' => 'teal', 'icon' => 'adjustments-horizontal', 'variant' => 'ghost'],
+                                    default => ['color' => 'neutral', 'icon' => 'clock', 'variant' => 'ghost'],
+                                };
+                            @endphp
+                            <flux:badge :color="$invStyle['color']" :icon="$invStyle['icon']" :variant="$invStyle['variant']" size="sm">
                                 {{ ucfirst($invoice->status) }}
                             </flux:badge>
                         </flux:table.cell>
@@ -140,7 +229,19 @@ new #[Title('Invoices')] class extends Component {
                     <flux:heading size="lg">{{ $viewingInvoice?->invoice_number }}</flux:heading>
                     <flux:subheading>{{ __('Invoice summary') }}</flux:subheading>
                 </div>
-                <flux:badge :icon="match($viewingInvoice?->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'paid' => 'check-circle', 'overdue' => 'exclamation-triangle', 'cancelled' => 'x-circle', 'partial' => 'adjustments-horizontal', default => 'clock' }" :variant="match($viewingInvoice?->status) { 'draft' => 'ghost', 'sent' => 'primary', 'paid' => 'success', 'overdue' => 'warning', 'cancelled' => 'danger', 'partial' => 'warning', default => 'ghost' }">{{ ucfirst($viewingInvoice?->status ?? '') }}</flux:badge>
+                @php
+                    $vStatus = $viewingInvoice?->status ?? '';
+                    $vStyle = match($vStatus) {
+                        'draft' => ['color' => 'neutral', 'icon' => 'clock', 'variant' => 'solid'],
+                        'sent' => ['color' => 'blue', 'icon' => 'paper-airplane', 'variant' => 'primary'],
+                        'paid' => ['color' => 'emerald', 'icon' => 'check-circle', 'variant' => 'success'],
+                        'overdue' => ['color' => 'amber', 'icon' => 'exclamation-triangle', 'variant' => 'warning'],
+                        'cancelled' => ['color' => 'red', 'icon' => 'x-circle', 'variant' => 'danger'],
+                        'partial' => ['color' => 'teal', 'icon' => 'adjustments-horizontal', 'variant' => 'ghost'],
+                        default => ['color' => 'neutral', 'icon' => 'clock', 'variant' => 'ghost'],
+                    };
+                @endphp
+                <flux:badge :color="$vStyle['color']" :icon="$vStyle['icon']" :variant="$vStyle['variant']">{{ ucfirst($vStatus) }}</flux:badge>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div><flux:label>{{ __('Customer') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingInvoice?->customer?->name ?? __('Walk-in') }}</p></div>

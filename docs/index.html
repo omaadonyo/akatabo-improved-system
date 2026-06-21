@@ -49,7 +49,7 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
 
 <header>
   <h1>Akatabo</h1>
-  <p>Business management suite — Inventory, Quotations, Invoices, Payments &amp; Customers</p>
+      <p>Business management suite — Multi-tenancy, Inventory, Quotations, Invoices, Payments &amp; Customers</p>
 </header>
 
 <nav>
@@ -57,6 +57,7 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
     <li><a href="#overview">Overview</a></li>
     <li><a href="#tech-stack">Tech Stack</a></li>
     <li><a href="#features">Features</a></li>
+    <li><a href="#multi-business">Multi-Business</a></li>
     <li><a href="#routes">Routes</a></li>
     <li><a href="#models">Data Model</a></li>
     <li><a href="#auth">Authentication</a></li>
@@ -69,7 +70,7 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
 
 <section id="overview">
 <h2>Overview</h2>
-<p>Akatabo is a full-featured business management application built on Laravel, Livewire, and Flux UI. It provides a complete workflow for managing customers, inventory (fabrics, products, services, office rentals), creating quotations and invoices with live previews, recording payments, and generating reports — all wrapped in a clean, responsive interface with light/dark themes.</p>
+<p>Akatabo is a full-featured business management application built on Laravel, Livewire, and Flux UI. It provides a complete workflow for managing multiple businesses, customers, inventory (fabrics, products, services, office rentals), creating quotations and invoices with live previews, recording payments, handling customer fabric requests, and generating reports — all wrapped in a clean, responsive interface with light/dark themes.</p>
 </section>
 
 <section id="tech-stack">
@@ -105,8 +106,11 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
 <section id="features">
 <h2>Features</h2>
 
+<h3>Multi-Business Tenancy</h3>
+<p>Users can create and manage multiple businesses from a single account. A header dropdown (on both desktop and mobile) lets you switch between businesses instantly &mdash; all data (customers, inventory, invoices, etc.) is scoped per business via the <code>activeBusinessId()</code> helper. The <code>business_user</code> pivot table tracks membership with per-user roles.</p>
+
 <h3>Business Onboarding</h3>
-<p>4-step wizard: Business info &rarr; Address &rarr; Logo &rarr; Default document notes. Creates the <code>Business</code> record and auto-assigns the user as owner.</p>
+<p>4-step wizard: Business info &rarr; Address &rarr; Logo &rarr; Default document notes. Creates the <code>Business</code> record and auto-assigns the user as owner. The <code>?add=1</code> URL parameter allows existing users to create additional businesses.</p>
 
 <h3>Customer Management</h3>
 <p>CRUD with name, email, address. Search, sort, paginated listing. PDF export of customer directory.</p>
@@ -114,19 +118,25 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
 <h3>Inventory</h3>
 <p>Three tabs under one page:</p>
 <ul>
-  <li><strong>Fabrics</strong> — Roll code, color, supplier, claimed/verified/used meters, pricing, image. Computed <code>remaining_meters</code>.</li>
-  <li><strong>Products &amp; Services</strong> — Name, SKU, description, buying/selling price, unit, image.</li>
+  <li><strong>Fabrics</strong> — Roll code, color, supplier, claimed/verified/used meters, pricing, image. Computed <code>remaining_meters</code> with low-stock warnings (quantity + low_stock_alert).</li>
+  <li><strong>Products &amp; Services</strong> — Name, SKU, description, buying/selling price, unit, image, quantity tracking.</li>
   <li><strong>Office Rentals</strong> — Name, location, monthly rent, description, image.</li>
 </ul>
 
 <h3>Quotations</h3>
-<p>Create/edit with live PDF-style preview. Select customer, dates, line items from inventory or custom entry. Discount (% or fixed) and tax. Auto-numbering (QOT-XXXX). Status workflow: draft &rarr; sent &rarr; accepted / converted / rejected. Convert to invoice. PDF download with QR code.</p>
+<p>Create/edit with live PDF-style preview. Select customer, dates, line items from inventory or custom entry. Discount (% or fixed) and tax. Auto-numbering (QOT-XXXX). Status workflow: draft &rarr; sent &rarr; accepted / converted / rejected. Convert to invoice. PDF download with QR code. Fulfilled quantity tracking per line item.</p>
 
 <h3>Invoices</h3>
-<p>Same structure as quotations plus: payment recording, receipt numbers (RCT-XXXX), balance tracking (<code>paid_amount</code> vs total). Statuses: draft, sent, paid, overdue, cancelled, partial. PDF download with receipts summary.</p>
+<p>Same structure as quotations plus: payment recording, receipt numbers (RCT-XXXX), balance tracking (<code>paid_amount</code> vs total). Statuses: draft, sent, paid, overdue, cancelled, partial. Recurring invoice support with configurable frequency and next-run date. PDF download with receipts summary.</p>
 
 <h3>Payments / Receipts</h3>
-<p>List all payments with search. Methods: cash, bank, mobile_money, card, other. CSV export. Soft-deletes.</p>
+<p>List all payments with search. Methods: cash, bank, mobile_money, card, other. CSV export. Soft-deletes. Activity logged on creation and deletion.</p>
+
+<h3>Customer Requests (Fabric Quotations)</h3>
+<p>Public-facing forms for customers to submit fabric quotation requests. Admin reviews requests and responds with pricing/availability. Status workflow: pending &rarr; reviewed &rarr; responded.</p>
+
+<h3>Activity Logs</h3>
+<p>Track all significant actions across the business: logins, CRUD operations on invoices/quotations/payments/customers/inventory, and user changes. Filterable by event type and date range. Accessible to admin users only.</p>
 
 <h3>Reports</h3>
 <p>Period filter (30d / 90d / 12m / all). Revenue, invoiced, outstanding, customer count. Payment method breakdown. Top invoices. Recent payments. PDF export.</p>
@@ -140,7 +150,28 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
   <li><strong>Business</strong> — Name, email, address, logo, default invoice/quotes/receipt notes</li>
   <li><strong>Security</strong> — Password change, 2FA enable/disable/recovery codes, passkey management</li>
   <li><strong>Appearance</strong> — Light / Dark / System theme</li>
+  <li><strong>Backup</strong> — Download database backups; configurable auto-backup schedule</li>
 </ul>
+</section>
+
+<section id="multi-business">
+<h2>Multi-Business Tenancy</h2>
+
+<p>Akatabo supports a lightweight multi-tenancy model where a single user can belong to multiple businesses.</p>
+
+<h3>How it works</h3>
+<ul>
+  <li><strong>Pivot table</strong> <code>business_user</code> — links users to businesses with a <code>role</code> column (admin/employee)</li>
+  <li><strong>User.business_id</strong> — the user's "home" business (set during onboarding)</li>
+  <li><strong>Session</strong> <code>active_business_id</code> — the currently active business (set on login and on switch)</li>
+  <li><strong>Helpers</strong> — <code>activeBusiness(): ?Business</code> and <code>activeBusinessId(): ?int</code> used globally across all queries</li>
+</ul>
+
+<h3>Switching businesses</h3>
+<p>A dropdown in the header (both desktop and mobile) lists all businesses the user belongs to. Clicking one sends a POST to <code>/business/switch/{business}</code> which updates the session. The sidebar brand name and all scoped data update accordingly.</p>
+
+<h3>Adding a business</h3>
+<p>From the switch dropdown, click "Add Business" which opens the onboarding wizard with <code>?add=1</code>. The new business is created, the user is attached via the pivot table, and the session switches to it.</p>
 </section>
 
 <section id="routes">
@@ -149,6 +180,7 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
 <table>
 <tr><th>Path</th><th>Name</th><th>Access</th><th>Component / View</th></tr>
 <tr><td><code>/</code></td><td><code>home</code></td><td>public</td><td>Welcome page</td></tr>
+<tr><td><code>/business/switch/{business}</code></td><td><code>business.switch</code></td><td>auth</td><td>POST — switches active business</td></tr>
 <tr><td><code>/dashboard</code></td><td><code>dashboard</code></td><td>auth+verified</td><td>Dashboard view</td></tr>
 <tr><td><code>/onboarding</code></td><td><code>onboarding</code></td><td>auth</td><td>Onboarding wizard</td></tr>
 <tr><td><code>/customers</code></td><td><code>customers</code></td><td>admin</td><td>Customer CRUD</td></tr>
@@ -160,6 +192,9 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
 <tr><td><code>/invoices/create</code></td><td><code>invoices.create</code></td><td>auth+verified</td><td>Create invoice</td></tr>
 <tr><td><code>/invoices/{id}/edit</code></td><td><code>invoices.edit</code></td><td>auth+verified</td><td>Edit invoice</td></tr>
 <tr><td><code>/payments</code></td><td><code>payments</code></td><td>auth+verified</td><td>Payment list</td></tr>
+<tr><td><code>/payments/export/csv</code></td><td><code>payments.export</code></td><td>auth+verified</td><td>CSV download</td></tr>
+<tr><td><code>/customer-quotations</code></td><td><code>customer-quotations</code></td><td>auth+verified</td><td>Customer fabric requests</td></tr>
+<tr><td><code>/activity-logs</code></td><td><code>activity-logs</code></td><td>admin</td><td>Activity log viewer</td></tr>
 <tr><td><code>/users</code></td><td><code>users</code></td><td>admin</td><td>User management</td></tr>
 <tr><td><code>/reports</code></td><td><code>reports</code></td><td>auth+verified</td><td>Reports + PDF</td></tr>
 <tr><td><code>/settings/business</code></td><td><code>business.edit</code></td><td>admin</td><td>Business settings</td></tr>
@@ -174,19 +209,22 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
 
 <table>
 <tr><th>Table</th><th>Key Columns</th><th>Relationships</th></tr>
-<tr><td><code>users</code></td><td>name, email, role (admin/employee), business_id</td><td>belongsTo Business, hasOne ownedBusiness</td></tr>
-<tr><td><code>businesses</code></td><td>name, email, address, logo, invoice_notes, quotes_notes, receipt_notes</td><td>belongsTo User, hasMany Customers/Fabrics/ProductServices</td></tr>
+<tr><td><code>users</code></td><td>name, email, role (admin/employee), business_id</td><td>belongsTo Business, hasOne ownedBusiness, belongsToMany businesses (pivot)</td></tr>
+<tr><td><code>businesses</code></td><td>name, email, address, logo, invoice_notes, quotes_notes, receipt_notes</td><td>belongsTo User, belongsToMany users (pivot), hasMany Customers/Fabrics/ProductServices/Quotations/Invoices</td></tr>
+<tr><td><code>business_user</code></td><td>user_id, business_id, role (pivot)</td><td>belongsTo User, belongsTo Business</td></tr>
 <tr><td><code>customers</code></td><td>name, email, address, business_id</td><td>belongsTo Business</td></tr>
-<tr><td><code>fabrics</code></td><td>roll_code (unique), name, color, supplier, claimed/verified/used_meters, buying/selling price, width, image</td><td>belongsTo Business</td></tr>
-<tr><td><code>products_services</code></td><td>type (product/service/office_rent), name, sku, buying/selling price, description, unit, image</td><td>belongsTo Business</td></tr>
+<tr><td><code>fabrics</code></td><td>roll_code (unique), name, color, supplier, claimed/verified/used_meters, buying/selling price, width, image, quantity, low_stock_alert</td><td>belongsTo Business</td></tr>
+<tr><td><code>products_services</code></td><td>type (product/service/office_rent), name, sku, buying/selling price, description, unit, image, quantity</td><td>belongsTo Business</td></tr>
 <tr><td><code>quotations</code></td><td>quotation_number, issue_date, valid_until, subtotal, discount/tax, total, notes, status</td><td>belongsTo Business/Customer, hasMany QuotationItems, hasMany Invoices</td></tr>
-<tr><td><code>quotation_items</code></td><td>type, item_id, description, quantity, unit_price, total</td><td>belongsTo Quotation</td></tr>
-<tr><td><code>invoices</code></td><td>invoice_number, issue_date, due_date, subtotal, discount/tax, total, notes, status, paid_amount, quotation_id</td><td>belongsTo Business/Customer/Quotation, hasMany InvoiceItems/Payments</td></tr>
-<tr><td><code>invoice_items</code></td><td>type, item_id, description, quantity, unit_price, total</td><td>belongsTo Invoice</td></tr>
+<tr><td><code>quotation_items</code></td><td>type, item_id, description, quantity, unit_price, total, fulfilled_quantity</td><td>belongsTo Quotation</td></tr>
+<tr><td><code>invoices</code></td><td>invoice_number, issue_date, due_date, subtotal, discount/tax, total, notes, status, paid_amount, quotation_id, recurring_frequency, next_run_date</td><td>belongsTo Business/Customer/Quotation, hasMany InvoiceItems/Payments</td></tr>
+<tr><td><code>invoice_items</code></td><td>type, item_id, description, quantity, unit_price, total, fulfilled_quantity</td><td>belongsTo Invoice</td></tr>
 <tr><td><code>payments</code></td><td>receipt_number (unique), amount, payment_date, payment_method, reference, notes</td><td>belongsTo Invoice; softDeletes</td></tr>
+<tr><td><code>activity_logs</code></td><td>event_type, description, metadata (JSON), causer_id/type</td><td>morphTo causer</td></tr>
+<tr><td><code>customer_quotations</code></td><td>customer_name, email, phone, description, fabric_id, status, admin_response</td><td>belongsTo Fabric, belongsTo Business</td></tr>
 </table>
 
-<p>Most business-owned tables include <code>created_by</code> / <code>updated_by</code> audit foreign keys.</p>
+<p>Most business-owned tables include <code>created_by</code> / <code>updated_by</code> audit foreign keys. The <code>activity_logs</code> table uses a polymorphic <code>causer</code> relationship to track the user who performed each action.</p>
 </section>
 
 <section id="auth">
@@ -223,6 +261,8 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
   <li><code>quotation.blade.php</code> — Full quotation with logo, items, totals, QR code</li>
   <li><code>reports.blade.php</code> — Period-based report with stats and charts</li>
   <li><code>customers.blade.php</code> — Customer directory listing</li>
+  <li><code>invoices-list.blade.php</code> — Invoice listing PDF</li>
+  <li><code>quotations-list.blade.php</code> — Quotation listing PDF</li>
 </ul>
 <p>All PDFs use DejaVu Sans font, inline CSS (DomPDF does not support Tailwind), and the same layout as the on-screen preview panels.</p>
 </section>
@@ -246,6 +286,7 @@ npm run build
 php artisan serve</code></pre>
 
 <p><strong>Queue:</strong> <code>php artisan queue:work</code> (database driver)<br>
+<strong>Recurring Invoices:</strong> <code>php artisan invoices:process-recurring</code> (schedule via cron)<br>
 <strong>Theme:</strong> Toggle light/dark/system in Appearance settings</p>
 </section>
 

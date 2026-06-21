@@ -3,6 +3,7 @@
 use App\Helpers\QrCode;
 use App\Models\Customer;
 use App\Models\Fabric;
+use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\ProductService;
 use Flux\Flux;
@@ -31,6 +32,10 @@ new #[Title('Create Invoice')] class extends Component {
 
     public string $notes = '';
 
+    public bool $is_recurring = false;
+
+    public ?string $recurring_ended_at = null;
+
     public string $invoice_number = '';
 
     public int $editingId = 0;
@@ -47,7 +52,7 @@ new #[Title('Create Invoice')] class extends Component {
 
     public function mount($id = null, $quotation = null): void
     {
-        if (! auth()->user()->business) {
+        if (! activeBusiness()) {
             $this->redirect(route('onboarding', absolute: false), navigate: true);
             return;
         }
@@ -57,7 +62,7 @@ new #[Title('Create Invoice')] class extends Component {
         $this->payment_date = now()->format('Y-m-d');
 
         if ($quotation) {
-            $q = Quotation::with('items')->where('business_id', auth()->user()->business->id)->findOrFail($quotation);
+            $q = Quotation::with('items')->where('business_id', activeBusinessId())->findOrFail($quotation);
             $this->quotation_id = $q->id;
             $this->customer_id = $q->customer_id;
             $this->issue_date = now()->format('Y-m-d');
@@ -83,7 +88,7 @@ new #[Title('Create Invoice')] class extends Component {
         }
 
         if ($id) {
-            $invoice = Invoice::with('items', 'payments')->where('business_id', auth()->user()->business->id)->findOrFail($id);
+            $invoice = Invoice::with('items', 'payments')->where('business_id', activeBusinessId())->findOrFail($id);
             $this->editingId = $invoice->id;
             $this->invoice_number = $invoice->invoice_number;
             $this->quotation_id = $invoice->quotation_id;
@@ -96,6 +101,8 @@ new #[Title('Create Invoice')] class extends Component {
             $this->tax_name = $invoice->tax_name;
             $this->tax_rate = $invoice->tax_rate !== null ? (string) $invoice->tax_rate : null;
             $this->notes = $invoice->notes ?? '';
+            $this->is_recurring = $invoice->is_recurring ?? false;
+            $this->recurring_ended_at = $invoice->recurring_ended_at?->format('Y-m-d') ?? null;
 
             $this->items = $invoice->items->map(fn($item) => [
                 'key' => Str::random(8),
@@ -155,13 +162,13 @@ new #[Title('Create Invoice')] class extends Component {
         $this->items[$index]['is_from_inventory'] = true;
 
         if ($type === 'product') {
-            $product = ProductService::where('business_id', auth()->user()->business?->id)->find($id);
+            $product = ProductService::where('business_id', activeBusinessId())->find($id);
             if ($product) {
                 $this->items[$index]['description'] = $product->name;
                 $this->items[$index]['unit_price'] = (float) ($product->selling_price ?? 0);
             }
         } elseif ($type === 'fabric') {
-            $fabric = Fabric::where('business_id', auth()->user()->business?->id)->find($id);
+            $fabric = Fabric::where('business_id', activeBusinessId())->find($id);
             if ($fabric) {
                 $desc = $fabric->name;
                 if ($fabric->color) $desc .= ' (' . $fabric->color . ')';
@@ -169,7 +176,7 @@ new #[Title('Create Invoice')] class extends Component {
                 $this->items[$index]['unit_price'] = (float) ($fabric->selling_price_per_meter ?? 0);
             }
         } elseif ($type === 'office_rent') {
-            $rental = ProductService::where('business_id', auth()->user()->business?->id)->where('type', 'office_rent')->find($id);
+            $rental = ProductService::where('business_id', activeBusinessId())->where('type', 'office_rent')->find($id);
             if ($rental) {
                 $this->items[$index]['description'] = $rental->name;
                 $this->items[$index]['unit_price'] = (float) ($rental->selling_price ?? 0);
@@ -225,6 +232,33 @@ new #[Title('Create Invoice')] class extends Component {
         $this->total = round($afterDiscount + $this->tax_amount, 2);
     }
 
+    private function computeFulfilledQuantity(array $item): ?float
+    {
+        if (! $item['is_from_inventory'] || ! $item['item_id']) {
+            return null;
+        }
+
+        $requested = (float) ($item['quantity'] ?? 0);
+
+        if ($item['type'] === 'product') {
+            $product = ProductService::where('business_id', activeBusinessId())->find($item['item_id']);
+            if ($product) {
+                $available = (float) ($product->quantity ?? 0);
+                $product->decrement('quantity', $requested);
+                return $available >= $requested ? null : max(0, $available);
+            }
+        } elseif ($item['type'] === 'fabric') {
+            $fabric = Fabric::where('business_id', activeBusinessId())->find($item['item_id']);
+            if ($fabric) {
+                $available = (float) ($fabric->remaining_meters ?? 0);
+                $fabric->increment('used_meters', $requested);
+                return $available >= $requested ? null : max(0, $available);
+            }
+        }
+
+        return null;
+    }
+
     public function save(): void
     {
         $this->validate([
@@ -243,8 +277,12 @@ new #[Title('Create Invoice')] class extends Component {
 
         $this->recalculate();
 
+        $nextRecurring = $this->is_recurring && $this->due_date
+            ? \Carbon\CarbonImmutable::parse($this->due_date)->addMonth()->format('Y-m-d')
+            : null;
+
         $data = [
-            'business_id' => auth()->user()->business->id,
+            'business_id' => activeBusinessId(),
             'customer_id' => $this->customer_id,
             'issue_date' => $this->issue_date,
             'due_date' => $this->due_date ?: null,
@@ -257,19 +295,25 @@ new #[Title('Create Invoice')] class extends Component {
             'tax_amount' => $this->tax_amount,
             'total' => $this->total,
             'notes' => $this->notes ?: null,
+            'is_recurring' => $this->is_recurring,
+            'recurring_frequency' => $this->is_recurring ? 'monthly' : null,
+            'next_recurring_at' => $nextRecurring,
+            'recurring_ended_at' => $this->is_recurring && $this->recurring_ended_at ? $this->recurring_ended_at : null,
         ];
 
         if ($this->editingId) {
-            $invoice = Invoice::where('business_id', auth()->user()->business->id)->findOrFail($this->editingId);
+            $invoice = Invoice::where('business_id', activeBusinessId())->findOrFail($this->editingId);
             $data['updated_by'] = auth()->id();
             $invoice->update($data);
             $invoice->items()->delete();
             foreach ($this->items as $item) {
+                $fulfilled = $this->computeFulfilledQuantity($item);
                 $invoice->items()->create([
                     'type' => $item['type'],
                     'item_id' => $item['item_id'],
                     'description' => $item['description'],
                     'quantity' => $item['quantity'],
+                    'fulfilled_quantity' => $fulfilled,
                     'unit_price' => $item['unit_price'],
                     'total' => $item['total'],
                     'created_by' => auth()->id(),
@@ -277,9 +321,10 @@ new #[Title('Create Invoice')] class extends Component {
                 ]);
             }
             $this->invoice_number = $invoice->fresh()->invoice_number;
+            ActivityLog::log('updated', 'Invoice ' . $this->invoice_number . ' updated');
             Flux::toast(variant: 'success', text: __('Invoice updated.'));
         } else {
-            $last = Invoice::where('business_id', auth()->user()->business->id)->orderBy('id', 'desc')->first();
+            $last = Invoice::where('business_id', activeBusinessId())->orderBy('id', 'desc')->first();
             $next = $last ? ((int) substr($last->invoice_number, -4)) + 1 : 1;
             $data['invoice_number'] = 'INV-' . str_pad($next, 4, '0', STR_PAD_LEFT);
             $data['status'] = 'draft';
@@ -289,11 +334,13 @@ new #[Title('Create Invoice')] class extends Component {
 
             $invoice = Invoice::create($data);
             foreach ($this->items as $item) {
+                $fulfilled = $this->computeFulfilledQuantity($item);
                 $invoice->items()->create([
                     'type' => $item['type'],
                     'item_id' => $item['item_id'],
                     'description' => $item['description'],
                     'quantity' => $item['quantity'],
+                    'fulfilled_quantity' => $fulfilled,
                     'unit_price' => $item['unit_price'],
                     'total' => $item['total'],
                     'created_by' => auth()->id(),
@@ -302,6 +349,7 @@ new #[Title('Create Invoice')] class extends Component {
             }
             $this->invoice_number = $invoice->fresh()->invoice_number;
             $this->editingId = $invoice->id;
+            ActivityLog::log('created', 'Invoice ' . $this->invoice_number . ' created');
             Flux::toast(variant: 'success', text: __('Invoice created.'));
         }
     }
@@ -320,9 +368,9 @@ new #[Title('Create Invoice')] class extends Component {
             return;
         }
 
-        $invoice = Invoice::where('business_id', auth()->user()->business->id)->findOrFail($this->editingId);
+        $invoice = Invoice::where('business_id', activeBusinessId())->findOrFail($this->editingId);
 
-        $last = \App\Models\Payment::whereHas('invoice', fn($q) => $q->where('business_id', auth()->user()->business->id))
+        $last = \App\Models\Payment::whereHas('invoice', fn($q) => $q->where('business_id', activeBusinessId()))
             ->whereNotNull('receipt_number')
             ->orderBy('id', 'desc')
             ->first();
@@ -350,12 +398,13 @@ new #[Title('Create Invoice')] class extends Component {
         $this->payment_reference = '';
         $this->payment_notes = '';
 
+        ActivityLog::log('recorded', 'Payment ' . $receiptNumber . ' recorded for invoice ' . $invoice->invoice_number);
         Flux::toast(variant: 'success', text: __('Receipt ' . $receiptNumber . ' recorded.'));
     }
 
     public function deletePayment(int $paymentId): void
     {
-        $payment = \App\Models\Payment::whereHas('invoice', fn($q) => $q->where('business_id', auth()->user()->business->id))
+        $payment = \App\Models\Payment::whereHas('invoice', fn($q) => $q->where('business_id', activeBusinessId()))
             ->findOrFail($paymentId);
         $payment->delete();
 
@@ -371,7 +420,7 @@ new #[Title('Create Invoice')] class extends Component {
 
     public function getInventoryItemsProperty(): array
     {
-        $businessId = auth()->user()->business?->id;
+        $businessId = activeBusinessId();
         if (! $businessId) return [];
 
         $products = ProductService::where('business_id', $businessId)
@@ -405,7 +454,7 @@ new #[Title('Create Invoice')] class extends Component {
 
     public function getCustomerOptionsProperty(): array
     {
-        $businessId = auth()->user()->business?->id;
+        $businessId = activeBusinessId();
         if (! $businessId) return [];
 
         return Customer::where('business_id', $businessId)
@@ -415,7 +464,7 @@ new #[Title('Create Invoice')] class extends Component {
 
     public function getBusinessProperty()
     {
-        return auth()->user()->business;
+        return activeBusiness();
     }
 
     public function getPaymentsProperty()
@@ -527,7 +576,7 @@ new #[Title('Create Invoice')] class extends Component {
                                         <flux:error name="items.{{ $index }}.quantity" />
                                     </flux:field>
                                     <flux:field>
-                                        <flux:input wire:model="items.{{ $index }}.unit_price" wire:input="recalculate" type="number" step="0.01" min="0" placeholder="{{ __('Price') }}" :readonly="$item['is_from_inventory']" />
+                                        <flux:input wire:model="items.{{ $index }}.unit_price" wire:input="recalculate" type="number" step="0.01" min="0" placeholder="{{ __('Price') }}" />
                                         <flux:error name="items.{{ $index }}.unit_price" />
                                     </flux:field>
                                     <flux:field>
@@ -561,11 +610,30 @@ new #[Title('Create Invoice')] class extends Component {
                     </flux:field>
                 </div>
 
-                {{-- Notes --}}
-                <flux:field>
-                    <flux:label>{{ __('Notes') }}</flux:label>
-                    <flux:textarea wire:model="notes" rows="2" placeholder="{{ __('Optional notes for the customer...') }}" />
-                </flux:field>
+                {{-- Notes & Recurring --}}
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <flux:field>
+                        <flux:label>{{ __('Notes') }}</flux:label>
+                        <flux:textarea wire:model="notes" rows="2" placeholder="{{ __('Optional notes for the customer...') }}" />
+                    </flux:field>
+                    <div class="space-y-4">
+                        <flux:field>
+                            <div class="flex items-center justify-between rounded-lg border border-neutral-200 p-4 dark:border-neutral-700">
+                                <div>
+                                    <flux:heading size="sm">{{ __('Recurring Invoice') }}</flux:heading>
+                                    <flux:subheading class="text-xs">{{ __('Auto-generate monthly copies') }}</flux:subheading>
+                                </div>
+                                <flux:switch wire:model="is_recurring" />
+                            </div>
+                        </flux:field>
+                        @if ($is_recurring)
+                            <flux:field>
+                                <flux:label>{{ __('End recurring on (optional)') }}</flux:label>
+                                <flux:input wire:model="recurring_ended_at" type="date" />
+                            </flux:field>
+                        @endif
+                    </div>
+                </div>
 
                 @if ($editingId)
                     {{-- Payments / Receipts --}}

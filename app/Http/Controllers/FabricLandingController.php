@@ -7,7 +7,6 @@ use App\Models\CustomerQuotation;
 use App\Models\Fabric;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Storage;
 
 class FabricLandingController extends Controller
 {
@@ -26,7 +25,7 @@ class FabricLandingController extends Controller
 
     public function quote(Fabric $fabric)
     {
-        if (!$fabric->selling_price_per_meter || $fabric->selling_price_per_meter <= 0) {
+        if (! $fabric->selling_price_per_meter || $fabric->selling_price_per_meter <= 0) {
             abort(404);
         }
 

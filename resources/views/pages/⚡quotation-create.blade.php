@@ -38,7 +38,7 @@ new #[Title('Create Quotation')] class extends Component {
 
     public function mount($id = null): void
     {
-        if (! auth()->user()->business) {
+        if (! activeBusiness()) {
             $this->redirect(route('onboarding', absolute: false), navigate: true);
             return;
         }
@@ -47,7 +47,7 @@ new #[Title('Create Quotation')] class extends Component {
         $this->valid_until = now()->addDays(14)->format('Y-m-d');
 
         if ($id) {
-            $quotation = Quotation::with('items')->where('business_id', auth()->user()->business->id)->findOrFail($id);
+            $quotation = Quotation::with('items')->where('business_id', activeBusinessId())->findOrFail($id);
             $this->editingId = $quotation->id;
             $this->quotation_number = $quotation->quotation_number;
             $this->customer_id = $quotation->customer_id;
@@ -117,13 +117,13 @@ new #[Title('Create Quotation')] class extends Component {
         $this->items[$index]['is_from_inventory'] = true;
 
         if ($type === 'product') {
-            $product = ProductService::where('business_id', auth()->user()->business?->id)->find($id);
+            $product = ProductService::where('business_id', activeBusinessId())->find($id);
             if ($product) {
                 $this->items[$index]['description'] = $product->name;
                 $this->items[$index]['unit_price'] = (float) ($product->selling_price ?? 0);
             }
         } elseif ($type === 'fabric') {
-            $fabric = Fabric::where('business_id', auth()->user()->business?->id)->find($id);
+            $fabric = Fabric::where('business_id', activeBusinessId())->find($id);
             if ($fabric) {
                 $desc = $fabric->name;
                 if ($fabric->color) $desc .= ' (' . $fabric->color . ')';
@@ -131,7 +131,7 @@ new #[Title('Create Quotation')] class extends Component {
                 $this->items[$index]['unit_price'] = (float) ($fabric->selling_price_per_meter ?? 0);
             }
         } elseif ($type === 'office_rent') {
-            $rental = ProductService::where('business_id', auth()->user()->business?->id)->where('type', 'office_rent')->find($id);
+            $rental = ProductService::where('business_id', activeBusinessId())->where('type', 'office_rent')->find($id);
             if ($rental) {
                 $this->items[$index]['description'] = $rental->name;
                 $this->items[$index]['unit_price'] = (float) ($rental->selling_price ?? 0);
@@ -169,6 +169,33 @@ new #[Title('Create Quotation')] class extends Component {
         $this->total = round($afterDiscount + $this->tax_amount, 2);
     }
 
+    private function computeFulfilledQuantity(array $item): ?float
+    {
+        if (! $item['is_from_inventory'] || ! $item['item_id']) {
+            return null;
+        }
+
+        $requested = (float) ($item['quantity'] ?? 0);
+
+        if ($item['type'] === 'product') {
+            $product = ProductService::where('business_id', activeBusinessId())->find($item['item_id']);
+            if ($product) {
+                $available = (float) ($product->quantity ?? 0);
+                $product->decrement('quantity', $requested);
+                return $available >= $requested ? null : max(0, $available);
+            }
+        } elseif ($item['type'] === 'fabric') {
+            $fabric = Fabric::where('business_id', activeBusinessId())->find($item['item_id']);
+            if ($fabric) {
+                $available = (float) ($fabric->remaining_meters ?? 0);
+                $fabric->increment('used_meters', $requested);
+                return $available >= $requested ? null : max(0, $available);
+            }
+        }
+
+        return null;
+    }
+
     public function save(): void
     {
         $this->validate([
@@ -188,7 +215,7 @@ new #[Title('Create Quotation')] class extends Component {
         $this->recalculate();
 
         $data = [
-            'business_id' => auth()->user()->business->id,
+            'business_id' => activeBusinessId(),
             'customer_id' => $this->customer_id,
             'issue_date' => $this->issue_date,
             'valid_until' => $this->valid_until ?: null,
@@ -204,17 +231,19 @@ new #[Title('Create Quotation')] class extends Component {
         ];
 
         if ($this->editingId) {
-            $quotation = Quotation::where('business_id', auth()->user()->business->id)->findOrFail($this->editingId);
+            $quotation = Quotation::where('business_id', activeBusinessId())->findOrFail($this->editingId);
             $data['updated_by'] = auth()->id();
             $quotation->update($data);
             $quotation->items()->delete();
 
             foreach ($this->items as $item) {
+                $fulfilled = $this->computeFulfilledQuantity($item);
                 $quotation->items()->create([
                     'type' => $item['type'],
                     'item_id' => $item['item_id'],
                     'description' => $item['description'],
                     'quantity' => $item['quantity'],
+                    'fulfilled_quantity' => $fulfilled,
                     'unit_price' => $item['unit_price'],
                     'total' => $item['total'],
                     'updated_by' => auth()->id(),
@@ -225,7 +254,7 @@ new #[Title('Create Quotation')] class extends Component {
             $this->quotation_number = $quotation->fresh()->quotation_number;
             Flux::toast(variant: 'success', text: __('Quotation updated.'));
         } else {
-            $last = Quotation::where('business_id', auth()->user()->business->id)->orderBy('id', 'desc')->first();
+            $last = Quotation::where('business_id', activeBusinessId())->orderBy('id', 'desc')->first();
             $next = $last ? ((int) substr($last->quotation_number, -4)) + 1 : 1;
             $data['quotation_number'] = 'QOT-' . str_pad($next, 4, '0', STR_PAD_LEFT);
             $data['status'] = 'draft';
@@ -234,11 +263,13 @@ new #[Title('Create Quotation')] class extends Component {
 
             $quotation = Quotation::create($data);
             foreach ($this->items as $item) {
+                $fulfilled = $this->computeFulfilledQuantity($item);
                 $quotation->items()->create([
                     'type' => $item['type'],
                     'item_id' => $item['item_id'],
                     'description' => $item['description'],
                     'quantity' => $item['quantity'],
+                    'fulfilled_quantity' => $fulfilled,
                     'unit_price' => $item['unit_price'],
                     'total' => $item['total'],
                     'created_by' => auth()->id(),
@@ -257,14 +288,14 @@ new #[Title('Create Quotation')] class extends Component {
             return;
         }
 
-        $quotation = Quotation::with('items')->where('business_id', auth()->user()->business->id)->findOrFail($this->editingId);
+        $quotation = Quotation::with('items')->where('business_id', activeBusinessId())->findOrFail($this->editingId);
 
         if ($quotation->status === 'converted') {
             Flux::toast(variant: 'warning', text: __('This quotation has already been converted.'));
             return;
         }
 
-        $last = Invoice::where('business_id', auth()->user()->business->id)->orderBy('id', 'desc')->first();
+        $last = Invoice::where('business_id', activeBusinessId())->orderBy('id', 'desc')->first();
         $next = $last ? ((int) substr($last->invoice_number, -4)) + 1 : 1;
         $invoiceNumber = 'INV-' . str_pad($next, 4, '0', STR_PAD_LEFT);
 
@@ -284,7 +315,7 @@ new #[Title('Create Quotation')] class extends Component {
             'tax_amount' => $quotation->tax_amount,
             'total' => $quotation->total,
             'notes' => $quotation->notes,
-            'status' => 'draft',
+            'status' => 'sent',
             'paid_amount' => 0,
             'created_by' => auth()->id(),
             'updated_by' => auth()->id(),
@@ -311,7 +342,7 @@ new #[Title('Create Quotation')] class extends Component {
 
     public function getInventoryItemsProperty(): array
     {
-        $businessId = auth()->user()->business?->id;
+        $businessId = activeBusinessId();
         if (! $businessId) return [];
 
         $products = ProductService::where('business_id', $businessId)
@@ -345,7 +376,7 @@ new #[Title('Create Quotation')] class extends Component {
 
     public function getCustomerOptionsProperty(): array
     {
-        $businessId = auth()->user()->business?->id;
+        $businessId = activeBusinessId();
         if (! $businessId) return [];
 
         return Customer::where('business_id', $businessId)
@@ -355,7 +386,7 @@ new #[Title('Create Quotation')] class extends Component {
 
     public function getBusinessProperty()
     {
-        return auth()->user()->business;
+        return activeBusiness();
     }
 
     public function getQrSvgProperty(): string
@@ -456,7 +487,7 @@ new #[Title('Create Quotation')] class extends Component {
                                         <flux:error name="items.{{ $index }}.quantity" />
                                     </flux:field>
                                     <flux:field>
-                                        <flux:input wire:model="items.{{ $index }}.unit_price" wire:input="recalculate" type="number" step="0.01" min="0" placeholder="{{ __('Price') }}" :readonly="$item['is_from_inventory']" />
+                                        <flux:input wire:model="items.{{ $index }}.unit_price" wire:input="recalculate" type="number" step="0.01" min="0" placeholder="{{ __('Price') }}" />
                                         <flux:error name="items.{{ $index }}.unit_price" />
                                     </flux:field>
                                     <flux:field>

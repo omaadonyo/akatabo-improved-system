@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\FabricLandingController;
+use App\Models\Payment;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name('home');
@@ -11,9 +12,17 @@ Route::prefix('fabrics')->name('fabrics.')->group(function () {
     Route::post('/quote', [FabricLandingController::class, 'submit'])->name('submit');
 });
 
+Route::post('/business/switch/{business}', function (App\Models\Business $business) {
+    if (! auth()->user()->businesses->contains($business)) {
+        abort(403);
+    }
+    auth()->user()->switchBusiness($business);
+    return redirect()->back();
+})->name('business.switch')->middleware('auth');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', function () {
-        if (! auth()->user()->business) {
+        if (! activeBusiness()) {
             return redirect()->route('onboarding');
         }
 
@@ -36,8 +45,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::livewire('payments', 'pages::payments')->name('payments');
     Route::get('/payments/export/csv', function () {
-        $payments = App\Models\Payment::with('invoice', 'creator')
-            ->whereHas('invoice', fn($q) => $q->where('business_id', auth()->user()->business->id))
+        $payments = Payment::with('invoice', 'creator')
+            ->whereHas('invoice', fn ($q) => $q->where('business_id', activeBusinessId()))
             ->latest()
             ->get();
 
@@ -74,13 +83,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::livewire('reports', 'pages::reports')->name('reports');
 
+    Route::livewire('activity-logs', 'pages::activity-logs')->name('activity-logs')
+        ->middleware('can:manage-users');
+
     Route::livewire('customer-quotations', 'pages::customer-quotations')->name('customer-quotations');
 
     Route::get('/backups/{filename}', function (string $filename) {
-        $path = storage_path('app/backups/' . basename($filename));
+        $path = storage_path('app/backups/'.basename($filename));
         if (! file_exists($path)) {
             abort(404);
         }
+
         return response()->download($path);
     })->name('backups.download')->middleware('can:manage-business');
 });

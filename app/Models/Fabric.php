@@ -44,6 +44,7 @@ class Fabric extends Model
     public function isLowStock(): bool
     {
         $remaining = $this->remaining_meters;
+
         return $remaining !== null && $remaining <= $this->low_stock_threshold;
     }
 

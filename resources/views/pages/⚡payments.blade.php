@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ActivityLog;
 use App\Models\Payment;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -18,7 +19,7 @@ new #[Title('Payments')] class extends Component {
 
     public function viewPayment(Payment $payment): void
     {
-        if ($payment->invoice->business_id !== auth()->user()->business?->id) {
+        if ($payment->invoice->business_id !== activeBusinessId()) {
             return;
         }
         $this->viewingPayment = $payment;
@@ -27,9 +28,13 @@ new #[Title('Payments')] class extends Component {
 
     public function delete(Payment $payment): void
     {
-        if ($payment->invoice->business_id !== auth()->user()->business?->id) {
+        if ($payment->invoice->business_id !== activeBusinessId()) {
             return;
         }
+        ActivityLog::log('deleted', 'Payment ' . $payment->receipt_number . ' deleted', [
+            'payment_id' => $payment->id,
+            'receipt_number' => $payment->receipt_number,
+        ]);
         $payment->delete();
         $this->dispatch('payment-deleted');
     }
@@ -39,7 +44,7 @@ new #[Title('Payments')] class extends Component {
         return [
             'payments' => Payment::query()
                 ->with(['invoice:id,invoice_number,total,paid_amount,business_id', 'creator:id,name'])
-                ->whereHas('invoice', fn($q) => $q->where('business_id', auth()->user()->business?->id))
+                ->whereHas('invoice', fn($q) => $q->where('business_id', activeBusinessId()))
                 ->when($this->search, fn($q, $search) => $q->where(function($q) use ($search) {
                     $q->whereHas('invoice', fn($q) => $q->where('invoice_number', 'like', "%{$search}%"))
                       ->orWhere('receipt_number', 'like', "%{$search}%")

@@ -100,14 +100,14 @@ new #[Title('Inventory')] class extends Component {
 
     public function mount(): void
     {
-        if (! auth()->user()->business) {
+        if (! activeBusiness()) {
             $this->redirect(route('onboarding', absolute: false), navigate: true);
         }
     }
 
     public function fabrics()
     {
-        return Fabric::where('business_id', auth()->user()->business->id)
+        return Fabric::where('business_id', activeBusinessId())
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('roll_code', 'like', '%' . $this->search . '%')
                   ->orWhere('name', 'like', '%' . $this->search . '%')
@@ -120,7 +120,7 @@ new #[Title('Inventory')] class extends Component {
 
     public function products()
     {
-        return ProductService::where('business_id', auth()->user()->business->id)
+        return ProductService::where('business_id', activeBusinessId())
             ->whereIn('type', ['product', 'service'])
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('name', 'like', '%' . $this->search . '%')
@@ -132,7 +132,7 @@ new #[Title('Inventory')] class extends Component {
 
     public function officeRents()
     {
-        return ProductService::where('business_id', auth()->user()->business->id)
+        return ProductService::where('business_id', activeBusinessId())
             ->where('type', 'office_rent')
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('name', 'like', '%' . $this->search . '%')
@@ -215,12 +215,12 @@ new #[Title('Inventory')] class extends Component {
         }
 
         if ($this->fabricEditingId) {
-            Fabric::where('business_id', auth()->user()->business->id)
+            Fabric::where('business_id', activeBusinessId())
                 ->findOrFail($this->fabricEditingId)
                 ->update($data);
             Flux::toast(variant: 'success', text: __('Fabric updated.'));
         } else {
-            $data['business_id'] = auth()->user()->business->id;
+            $data['business_id'] = activeBusinessId();
             Fabric::create($data);
             Flux::toast(variant: 'success', text: __('Fabric added.'));
         }
@@ -286,12 +286,12 @@ new #[Title('Inventory')] class extends Component {
         }
 
         if ($this->productEditingId) {
-            ProductService::where('business_id', auth()->user()->business->id)
+            ProductService::where('business_id', activeBusinessId())
                 ->findOrFail($this->productEditingId)
                 ->update($data);
             Flux::toast(variant: 'success', text: __('Product updated.'));
         } else {
-            $data['business_id'] = auth()->user()->business->id;
+            $data['business_id'] = activeBusinessId();
             ProductService::create($data);
             Flux::toast(variant: 'success', text: __('Product added.'));
         }
@@ -344,12 +344,12 @@ new #[Title('Inventory')] class extends Component {
         }
 
         if ($this->officeRentEditingId) {
-            ProductService::where('business_id', auth()->user()->business->id)
+            ProductService::where('business_id', activeBusinessId())
                 ->findOrFail($this->officeRentEditingId)
                 ->update($data);
             Flux::toast(variant: 'success', text: __('Office rental updated.'));
         } else {
-            $data['business_id'] = auth()->user()->business->id;
+            $data['business_id'] = activeBusinessId();
             ProductService::create($data);
             Flux::toast(variant: 'success', text: __('Office rental added.'));
         }

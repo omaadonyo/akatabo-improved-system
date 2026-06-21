@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\Quotation;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -26,6 +27,10 @@ new #[Title('Quotations')] class extends Component {
 
     public function delete(Quotation $quotation): void
     {
+        ActivityLog::log('deleted', 'Quotation ' . $quotation->quotation_number . ' deleted', [
+            'quotation_id' => $quotation->id,
+            'quotation_number' => $quotation->quotation_number,
+        ]);
         $quotation->items()->delete();
         $quotation->delete();
         Flux::toast(variant: 'success', text: __('Quotation deleted.'));
@@ -33,14 +38,14 @@ new #[Title('Quotations')] class extends Component {
 
     public function convertToInvoice(int $id): void
     {
-        $quotation = Quotation::with('items')->where('business_id', auth()->user()->business->id)->findOrFail($id);
+        $quotation = Quotation::with('items')->where('business_id', activeBusinessId())->findOrFail($id);
 
         if ($quotation->status === 'converted') {
             Flux::toast(variant: 'warning', text: __('Already converted.'));
             return;
         }
 
-        $last = Invoice::where('business_id', auth()->user()->business->id)->orderBy('id', 'desc')->first();
+        $last = Invoice::where('business_id', activeBusinessId())->orderBy('id', 'desc')->first();
         $next = $last ? ((int) substr($last->invoice_number, -4)) + 1 : 1;
         $invoiceNumber = 'INV-' . str_pad($next, 4, '0', STR_PAD_LEFT);
 
@@ -60,7 +65,7 @@ new #[Title('Quotations')] class extends Component {
             'tax_amount' => $quotation->tax_amount,
             'total' => $quotation->total,
             'notes' => $quotation->notes,
-            'status' => 'draft',
+            'status' => 'sent',
             'paid_amount' => 0,
             'created_by' => auth()->id(),
             'updated_by' => auth()->id(),
@@ -81,6 +86,7 @@ new #[Title('Quotations')] class extends Component {
 
         $quotation->update(['status' => 'converted', 'updated_by' => auth()->id()]);
 
+        ActivityLog::log('converted', 'Quotation ' . $quotation->quotation_number . ' converted to invoice ' . $invoiceNumber);
         Flux::toast(variant: 'success', text: __('Quotation converted to invoice.'));
     }
 
@@ -94,6 +100,70 @@ new #[Title('Quotations')] class extends Component {
             fn () => print($pdf->output()),
             $quotation->quotation_number . '.pdf'
         );
+    }
+
+    public function exportAllPdf()
+    {
+        $businessId = activeBusinessId();
+        $quotations = Quotation::where('business_id', $businessId)
+            ->when($this->search, fn($q) => $q->where(function($q) {
+                $q->where('quotation_number', 'like', '%'.$this->search.'%')
+                  ->orWhereHas('customer', fn($cq) => $cq->where('name', 'like', '%'.$this->search.'%'));
+            }))
+            ->with('customer')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $pdf = Pdf::loadView('pdf.quotations-list', [
+            'quotations' => $quotations,
+            'business' => activeBusiness(),
+        ]);
+
+        return response()->streamDownload(
+            fn () => print($pdf->output()),
+            'quotations-' . now()->format('Y-m-d') . '.pdf'
+        );
+    }
+
+    public function exportExcel()
+    {
+        $businessId = activeBusinessId();
+        $quotations = Quotation::where('business_id', $businessId)
+            ->when($this->search, fn($q) => $q->where(function($q) {
+                $q->where('quotation_number', 'like', '%'.$this->search.'%')
+                  ->orWhereHas('customer', fn($cq) => $cq->where('name', 'like', '%'.$this->search.'%'));
+            }))
+            ->with('customer')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="quotations-' . now()->format('Y-m-d') . '.csv"',
+        ];
+
+        $callback = function () use ($quotations) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Number', 'Customer', 'Issue Date', 'Valid Until', 'Subtotal', 'Discount', 'Tax', 'Total', 'Status']);
+
+            foreach ($quotations as $q) {
+                fputcsv($handle, [
+                    $q->quotation_number,
+                    $q->customer?->name ?? 'Walk-in',
+                    $q->issue_date->format('Y-m-d'),
+                    $q->valid_until?->format('Y-m-d') ?? '',
+                    number_format($q->subtotal, 2),
+                    number_format($q->discount_amount, 2),
+                    number_format($q->tax_amount, 2),
+                    number_format($q->total, 2),
+                    $q->status,
+                ]);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }; ?>
 
@@ -109,12 +179,20 @@ new #[Title('Quotations')] class extends Component {
         </flux:button>
     </div>
 
-    <div class="mt-6">
+    <div class="mt-6 flex items-center justify-between">
         <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass" :placeholder="__('Search quotations...')" clearable class="w-72" />
+        <div class="flex items-center gap-2">
+            <flux:button wire:click="exportAllPdf" variant="ghost" icon="arrow-down-tray" class="text-violet-600! hover:text-violet-800! dark:text-violet-400! dark:hover:text-violet-300! cursor-pointer">
+                {{ __('PDF') }}
+            </flux:button>
+            <flux:button wire:click="exportExcel" variant="ghost" icon="document-arrow-down" class="text-emerald-600! hover:text-emerald-800! dark:text-emerald-400! dark:hover:text-emerald-300! cursor-pointer">
+                {{ __('Excel') }}
+            </flux:button>
+        </div>
     </div>
 
     <div class="mt-4">
-        <flux:table :paginate="Quotation::where('business_id', auth()->user()->business->id)
+        <flux:table :paginate="Quotation::where('business_id', activeBusinessId())
             ->when($this->search, fn($q) => $q->where(function($q) {
                 $q->where('quotation_number', 'like', '%'.$this->search.'%')
                   ->orWhereHas('customer', fn($cq) => $cq->where('name', 'like', '%'.$this->search.'%'));
@@ -132,7 +210,7 @@ new #[Title('Quotations')] class extends Component {
             </flux:table.columns>
 
             <flux:table.rows>
-                @forelse (Quotation::where('business_id', auth()->user()->business->id)
+                @forelse (Quotation::where('business_id', activeBusinessId())
                     ->when($this->search, fn($q) => $q->where(function($q) {
                         $q->where('quotation_number', 'like', '%'.$this->search.'%')
                           ->orWhereHas('customer', fn($cq) => $cq->where('name', 'like', '%'.$this->search.'%'));
@@ -146,7 +224,17 @@ new #[Title('Quotations')] class extends Component {
                         <flux:table.cell>{{ $quotation->valid_until?->format('d M Y') ?? '—' }}</flux:table.cell>
                         <flux:table.cell align="end" class="font-medium">UGX {{ number_format($quotation->total, 2) }}</flux:table.cell>
                         <flux:table.cell>
-                            <flux:badge :icon="match($quotation->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'accepted' => 'check-badge', 'converted' => 'arrow-path', 'rejected' => 'x-circle', default => 'clock' }" :variant="match($quotation->status) { 'draft' => 'ghost', 'sent' => 'primary', 'accepted' => 'success', 'converted' => 'warning', 'rejected' => 'danger', default => 'ghost' }" size="sm">
+                            @php
+                                $qStyle = match($quotation->status) {
+                                    'draft' => ['color' => 'neutral', 'icon' => 'clock', 'variant' => 'solid'],
+                                    'sent' => ['color' => 'blue', 'icon' => 'paper-airplane', 'variant' => 'primary'],
+                                    'accepted' => ['color' => 'emerald', 'icon' => 'check-badge', 'variant' => 'success'],
+                                    'converted' => ['color' => 'indigo', 'icon' => 'arrow-path', 'variant' => 'ghost'],
+                                    'rejected' => ['color' => 'red', 'icon' => 'x-circle', 'variant' => 'danger'],
+                                    default => ['color' => 'neutral', 'icon' => 'clock', 'variant' => 'ghost'],
+                                };
+                            @endphp
+                            <flux:badge :color="$qStyle['color']" :icon="$qStyle['icon']" :variant="$qStyle['variant']" size="sm">
                                 {{ ucfirst($quotation->status) }}
                             </flux:badge>
                         </flux:table.cell>
@@ -185,7 +273,18 @@ new #[Title('Quotations')] class extends Component {
                     <flux:heading size="lg">{{ $viewingQuotation?->quotation_number }}</flux:heading>
                     <flux:subheading>{{ __('Quotation summary') }}</flux:subheading>
                 </div>
-                <flux:badge :icon="match($viewingQuotation?->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'accepted' => 'check-badge', 'converted' => 'arrow-path', 'rejected' => 'x-circle', default => 'clock' }" :variant="match($viewingQuotation?->status) { 'draft' => 'ghost', 'sent' => 'primary', 'accepted' => 'success', 'converted' => 'warning', 'rejected' => 'danger', default => 'ghost' }">{{ ucfirst($viewingQuotation?->status ?? '') }}</flux:badge>
+                @php
+                    $qvStatus = $viewingQuotation?->status ?? '';
+                    $qvStyle = match($qvStatus) {
+                        'draft' => ['color' => 'neutral', 'icon' => 'clock', 'variant' => 'solid'],
+                        'sent' => ['color' => 'blue', 'icon' => 'paper-airplane', 'variant' => 'primary'],
+                        'accepted' => ['color' => 'emerald', 'icon' => 'check-badge', 'variant' => 'success'],
+                        'converted' => ['color' => 'indigo', 'icon' => 'arrow-path', 'variant' => 'ghost'],
+                        'rejected' => ['color' => 'red', 'icon' => 'x-circle', 'variant' => 'danger'],
+                        default => ['color' => 'neutral', 'icon' => 'clock', 'variant' => 'ghost'],
+                    };
+                @endphp
+                <flux:badge :color="$qvStyle['color']" :icon="$qvStyle['icon']" :variant="$qvStyle['variant']">{{ ucfirst($qvStatus) }}</flux:badge>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div><flux:label>{{ __('Customer') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingQuotation?->customer?->name ?? __('Walk-in') }}</p></div>

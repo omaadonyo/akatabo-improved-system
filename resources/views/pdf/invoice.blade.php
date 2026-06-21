@@ -73,32 +73,57 @@
         </div>
     </div>
 
-    <table class="items">
-        <thead>
-            <tr>
-                <th>{{ __('Item') }}</th>
-                <th class="right">{{ __('Qty') }}</th>
-                <th class="right">{{ __('Price') }}</th>
-                <th class="right">{{ __('Total') }}</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse ($invoice->items as $item)
+        <table class="items">
+            <thead>
                 <tr>
-                    <td>{{ $item->description ?: '—' }}</td>
-                    <td class="right">{{ number_format($item->quantity, 2) }}</td>
-                    <td class="right">UGX {{ number_format($item->unit_price, 2) }}</td>
-                    <td class="right">UGX {{ number_format($item->total, 2) }}</td>
+                    <th>{{ __('Item') }}</th>
+                    <th class="right">{{ __('Requested') }}</th>
+                    <th class="right">{{ __('Delivered') }}</th>
+                    <th class="right">{{ __('Backorder') }}</th>
+                    <th class="right">{{ __('Price') }}</th>
+                    <th class="right">{{ __('Total') }}</th>
                 </tr>
-            @empty
-                <tr>
-                    <td colspan="4" style="text-align:center;padding:20px;color:#9ca3af;">{{ __('No items.') }}</td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @forelse ($invoice->items as $item)
+                    @php
+                        $requested = (float) $item->quantity;
+                        $fulfilled = $item->fulfilled_quantity !== null ? (float) $item->fulfilled_quantity : $requested;
+                        $backorder = max(0, $requested - $fulfilled);
+                    @endphp
+                    <tr>
+                        <td>{{ $item->description ?: '—' }}</td>
+                        <td class="right">{{ number_format($requested, 2) }}</td>
+                        <td class="right">{{ number_format($fulfilled, 2) }}</td>
+                        <td class="right" style="color:{{ $backorder > 0 ? '#dc2626' : '#9ca3af' }};">{{ $backorder > 0 ? number_format($backorder, 2) : '—' }}</td>
+                        <td class="right">UGX {{ number_format($item->unit_price, 2) }}</td>
+                        <td class="right">UGX {{ number_format($item->total, 2) }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="6" style="text-align:center;padding:20px;color:#9ca3af;">{{ __('No items.') }}</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
 
-    <div class="totals">
+        @php
+            $backorderItems = $invoice->items->filter(fn($i) => $i->fulfilled_quantity !== null && (float) $i->fulfilled_quantity < (float) $i->quantity);
+        @endphp
+        @if ($backorderItems->isNotEmpty())
+            <div style="margin-top:12px;padding:10px;border:1px solid #fecaca;background:#fef2f2;border-radius:4px;font-size:10px;">
+                <strong style="color:#dc2626;">{{ __('Backorder Notice') }}</strong>
+                @foreach ($backorderItems as $item)
+                    <p style="margin:4px 0 0 0;color:#991b1b;">
+                        {{ $item->description }}:
+                        {{ number_format((float) $item->quantity - (float) ($item->fulfilled_quantity ?? (float) $item->quantity), 2) }}
+                        {{ __('units on backorder') }}
+                    </p>
+                @endforeach
+            </div>
+        @endif
+
+        <div class="totals">
         <p><span class="line">{{ __('Subtotal:') }}</span> UGX {{ number_format($invoice->subtotal, 2) }}</p>
         @if ((float) $invoice->discount_amount > 0)
             <p><span class="line">{{ __('Discount:') }}</span> -UGX {{ number_format($invoice->discount_amount, 2) }}</p>

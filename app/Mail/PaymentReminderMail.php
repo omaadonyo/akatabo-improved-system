@@ -2,35 +2,35 @@
 
 namespace App\Mail;
 
-use App\Models\CustomerQuotation;
+use App\Models\Invoice;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class CustomerQuotationMail extends Mailable
+class PaymentReminderMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public CustomerQuotation $quotation;
+    public Invoice $invoice;
 
-    public function __construct(CustomerQuotation $quotation)
+    public function __construct(Invoice $invoice)
     {
-        $this->quotation = $quotation;
+        $this->invoice = $invoice;
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'New Fabric Quotation Request from '.$this->quotation->customer_name,
+            subject: 'Payment Reminder — ' . $this->invoice->invoice_number,
         );
     }
 
     public function content(): Content
     {
         return new Content(
-            markdown: 'emails.customer-quotation',
+            markdown: 'emails.payment-reminder',
         );
     }
 }

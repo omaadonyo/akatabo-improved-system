@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Customer;
+use App\Models\ActivityLog;
 use App\Models\CustomerQuotation;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
@@ -22,7 +23,7 @@ new #[Title('Customer Requests')] class extends Component {
 
     public function viewRequest(CustomerQuotation $quotation): void
     {
-        if ($quotation->business_id !== auth()->user()->business?->id) {
+        if ($quotation->business_id !== activeBusinessId()) {
             return;
         }
         $this->viewingQuotation = $quotation->load('fabric');
@@ -31,7 +32,7 @@ new #[Title('Customer Requests')] class extends Component {
 
     public function markResponded(CustomerQuotation $quotation): void
     {
-        if ($quotation->business_id !== auth()->user()->business?->id) {
+        if ($quotation->business_id !== activeBusinessId()) {
             return;
         }
         $quotation->update(['status' => 'responded']);
@@ -41,12 +42,12 @@ new #[Title('Customer Requests')] class extends Component {
 
     public function convertToQuotation(CustomerQuotation $quotation): void
     {
-        if ($quotation->business_id !== auth()->user()->business?->id) {
+        if ($quotation->business_id !== activeBusinessId()) {
             return;
         }
 
         $quotation->load('fabric');
-        $businessId = auth()->user()->business->id;
+        $businessId = activeBusinessId();
 
         $customer = Customer::firstOrCreate(
             [
@@ -107,6 +108,7 @@ new #[Title('Customer Requests')] class extends Component {
 
         $quotation->update(['status' => 'converted']);
 
+        ActivityLog::log('converted', 'Customer request from ' . $quotation->customer_email . ' converted to quotation ' . $quotationNumber);
         Flux::toast(variant: 'success', text: __('Quotation created.'));
 
         $this->redirect(route('quotations.edit', $newQuotation->id), navigate: true);
@@ -114,31 +116,23 @@ new #[Title('Customer Requests')] class extends Component {
 
     public function delete(CustomerQuotation $quotation): void
     {
-        if ($quotation->business_id !== auth()->user()->business?->id) {
+        if ($quotation->business_id !== activeBusinessId()) {
             return;
         }
         $quotation->delete();
         Flux::toast(variant: 'success', text: __('Request deleted.'));
     }
 
-    public function with(): array
+    private function baseQuery()
     {
-        $businessId = auth()->user()->business?->id;
-
-        $query = CustomerQuotation::with('fabric')
-            ->where('business_id', $businessId);
-
-        if ($this->search) {
-            $query->where(function ($q) {
+        return CustomerQuotation::with('fabric')
+            ->where('business_id', activeBusinessId())
+            ->when($this->search, fn($q) => $q->where(function ($q) {
                 $q->where('customer_name', 'like', "%{$this->search}%")
                   ->orWhere('customer_email', 'like', "%{$this->search}%")
                   ->orWhere('customer_phone', 'like', "%{$this->search}%");
-            });
-        }
-
-        return [
-            'quotations' => $query->latest()->paginate(15),
-        ];
+            }))
+            ->latest();
     }
 }; ?>
 
@@ -151,10 +145,10 @@ new #[Title('Customer Requests')] class extends Component {
         <flux:input wire:model.live.debounce="search" icon="magnifying-glass" placeholder="{{ __('Search by name, email or phone...') }}" class="max-w-sm" />
     </div>
 
-    <flux:table>
+    <flux:table :paginate="$this->baseQuery()->paginate(15)">
         <flux:table.columns>
-            <flux:table.column sortable>{{ __('Date') }}</flux:table.column>
-            <flux:table.column sortable>{{ __('Customer') }}</flux:table.column>
+            <flux:table.column>{{ __('Date') }}</flux:table.column>
+            <flux:table.column>{{ __('Customer') }}</flux:table.column>
             <flux:table.column>{{ __('Fabric') }}</flux:table.column>
             <flux:table.column class="text-right">{{ __('Length') }}</flux:table.column>
             <flux:table.column class="text-right">{{ __('Total') }}</flux:table.column>
@@ -163,7 +157,7 @@ new #[Title('Customer Requests')] class extends Component {
         </flux:table.columns>
 
         <flux:table.rows>
-            @forelse ($quotations as $q)
+            @forelse ($this->baseQuery()->paginate(15) as $q)
                 <flux:table.row>
                     <flux:table.cell class="whitespace-nowrap text-xs text-neutral-500">{{ $q->created_at->format('d M Y H:i') }}</flux:table.cell>
                     <flux:table.cell>
@@ -208,10 +202,6 @@ new #[Title('Customer Requests')] class extends Component {
             @endforelse
         </flux:table.rows>
     </flux:table>
-
-    <div class="mt-4">
-        {{ $quotations->links() }}
-    </div>
 
     {{-- View Modal --}}
     <flux:modal wire:model="showViewModal" class="min-w-xl">

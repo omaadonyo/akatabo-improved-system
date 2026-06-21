@@ -1,6 +1,6 @@
 # Akatabo
 
-Your business, one dashboard — inventory, quotations, invoices, payments, and customers — managed in a clean, professional interface.
+Your business, one dashboard — inventory, quotations, invoices, payments, customers, and multi-business management — all in a clean, professional interface.
 
 ## Tech Stack
 
@@ -12,17 +12,20 @@ Your business, one dashboard — inventory, quotations, invoices, payments, and 
 
 ## Features
 
-- **Business Onboarding** — 4-step wizard to set up your business profile
+- **Multi-Business Tenancy** — Create and switch between multiple businesses from the header dropdown; each business has isolated data (customers, inventory, invoices, etc.)
+- **Business Onboarding** — 4-step wizard to set up your business profile; also accessible as "Add Business" for existing users
 - **Customer Management** — CRUD with search, sort, pagination, PDF export
-- **Inventory** — Fabrics (roll/meter tracking), products & services, office rentals; image uploads
+- **Inventory** — Fabrics (roll/meter tracking, low-stock alerts), products & services, office rentals; image uploads
 - **Quotations** — Create/edit with live preview, discount/tax, QR code, PDF download, convert to invoice
-- **Invoices** — Full lifecycle with payment recording, receipts, balance tracking, PDF download
-- **Payments** — Receipt listing with CSV export
+- **Invoices** — Full lifecycle with payment recording, receipts, balance tracking, PDF download; recurring invoice support
+- **Payments / Receipts** — Receipt listing with CSV export; tracked per invoice with balance calculation
+- **Customer Requests** — Customers can submit fabric quotation requests via a public form; admin can review and respond
 - **Reports** — Revenue, outstanding, payment breakdown, PDF export
 - **User Management** — Admin/employee roles, multi-user per business
+- **Activity Logs** — Track all significant actions across the business (login, CRUD operations) with date/event filtering
 - **Security** — 2FA, passkeys, password confirmation, rate limiting
 - **Appearance** — Light/dark/system theme toggle
-- **Automatic Database Backups** — Daily MySQL dump emailed to the admin
+- **Automatic Database Backups** — Daily MySQL dump emailed to the admin; configurable backup schedule
 
 ## Requirements
 
@@ -70,6 +73,10 @@ php artisan queue:work
 # Run tests
 php artisan test
 ```
+
+## Multi-Business Details
+
+Users can belong to multiple businesses via the `business_user` pivot table (with a `role` column). Each user has a `business_id` pointing to their current active business, and the session stores `active_business_id` to scope all queries. Switching businesses is done via the header dropdown on both desktop and mobile. Helper functions `activeBusiness()` and `activeBusinessId()` are available globally.
 
 ## License
 

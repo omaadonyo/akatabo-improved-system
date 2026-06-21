@@ -36,14 +36,14 @@ new #[Title('Customers')] class extends Component {
 
     public function mount(): void
     {
-        if (! auth()->user()->business) {
+        if (! activeBusiness()) {
             $this->redirect(route('onboarding', absolute: false), navigate: true);
         }
     }
 
     public function customers()
     {
-        return Customer::where('business_id', auth()->user()->business->id)
+        return Customer::where('business_id', activeBusinessId())
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('name', 'like', '%' . $this->search . '%')
                   ->orWhere('email', 'like', '%' . $this->search . '%');
@@ -89,7 +89,7 @@ new #[Title('Customers')] class extends Component {
         ]);
 
         if ($this->editingCustomerId) {
-            $customer = Customer::where('business_id', auth()->user()->business->id)
+            $customer = Customer::where('business_id', activeBusinessId())
                 ->findOrFail($this->editingCustomerId);
 
             $customer->update([
@@ -100,7 +100,7 @@ new #[Title('Customers')] class extends Component {
 
             Flux::toast(variant: 'success', text: __('Customer updated.'));
         } else {
-            auth()->user()->business->customers()->create([
+            activeBusiness()->customers()->create([
                 'name' => $this->name,
                 'email' => $this->email ?: null,
                 'address' => $this->address ?: null,
@@ -122,7 +122,7 @@ new #[Title('Customers')] class extends Component {
 
     public function exportPdf()
     {
-        $business = auth()->user()->business;
+        $business = activeBusiness();
 
         $customers = Customer::where('business_id', $business->id)
             ->orderBy('name')

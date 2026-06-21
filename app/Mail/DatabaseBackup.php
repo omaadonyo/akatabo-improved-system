@@ -29,13 +29,13 @@ class DatabaseBackup extends Mailable
         $this->fileSize = $fileSize;
         $this->dbName = $dbName;
         $this->date = now()->format('Y-m-d H:i:s');
-        $this->size = round($fileSize / 1024 / 1024, 2) . ' MB';
+        $this->size = round($fileSize / 1024 / 1024, 2).' MB';
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Database Backup — ' . now()->format('Y-m-d H:i'),
+            subject: 'Database Backup — '.now()->format('Y-m-d H:i'),
         );
     }
 
@@ -50,7 +50,7 @@ class DatabaseBackup extends Mailable
     {
         return [
             Attachment::fromPath($this->backupPath)
-                ->as('backup-' . now()->format('Y-m-d_H-i-s') . '.sql')
+                ->as('backup-'.now()->format('Y-m-d_H-i-s').'.sql')
                 ->withMime('application/sql'),
         ];
     }

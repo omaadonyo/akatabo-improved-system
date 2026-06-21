@@ -6,7 +6,7 @@
         </div>
 
         @php
-            $business = auth()->user()->business;
+            $business = activeBusiness();
             $customersCount = $business?->customers()->count() ?? 0;
             $fabricsCount = $business?->fabrics()->count() ?? 0;
             $productsCount = $business?->productsServices()->count() ?? 0;

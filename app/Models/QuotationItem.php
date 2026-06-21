@@ -13,6 +13,7 @@ class QuotationItem extends Model
         'item_id',
         'description',
         'quantity',
+        'fulfilled_quantity',
         'unit_price',
         'total',
         'created_by',
@@ -23,6 +24,7 @@ class QuotationItem extends Model
     {
         return [
             'quantity' => 'decimal:2',
+            'fulfilled_quantity' => 'decimal:2',
             'unit_price' => 'decimal:2',
             'total' => 'decimal:2',
         ];

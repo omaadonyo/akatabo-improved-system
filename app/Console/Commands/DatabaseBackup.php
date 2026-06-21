@@ -26,8 +26,8 @@ class DatabaseBackup extends Command
             mkdir($backupDir, 0755, true);
         }
 
-        $filename = 'backup-' . now()->format('Y-m-d_H-i-s') . '.sql';
-        $path = $backupDir . '/' . $filename;
+        $filename = 'backup-'.now()->format('Y-m-d_H-i-s').'.sql';
+        $path = $backupDir.'/'.$filename;
 
         $this->components->task('Dumping database', function () use ($dumpPath, $dbName, $dbUser, $dbPass, $dbHost, $path) {
             $command = sprintf(
@@ -35,7 +35,7 @@ class DatabaseBackup extends Command
                 $dumpPath,
                 escapeshellarg($dbHost),
                 escapeshellarg($dbUser),
-                $dbPass ? '--password=' . escapeshellarg($dbPass) : '',
+                $dbPass ? '--password='.escapeshellarg($dbPass) : '',
                 escapeshellarg($dbName),
                 $path,
             );
@@ -45,12 +45,14 @@ class DatabaseBackup extends Command
             exec($command, $output, $exitCode);
 
             if ($exitCode !== 0) {
-                $this->components->error('mysqldump failed (exit code: ' . $exitCode . ')');
+                $this->components->error('mysqldump failed (exit code: '.$exitCode.')');
+
                 return false;
             }
 
             if (! file_exists($path) || filesize($path) === 0) {
                 $this->components->error('Backup file is empty or was not created.');
+
                 return false;
             }
 
@@ -64,11 +66,11 @@ class DatabaseBackup extends Command
         $fileSize = filesize($path);
         $mailTo = $this->option('mail-to');
 
-        $this->components->task('Sending backup to ' . $mailTo, function () use ($path, $fileSize, $dbName, $mailTo) {
+        $this->components->task('Sending backup to '.$mailTo, function () use ($path, $fileSize, $dbName, $mailTo) {
             Mail::to($mailTo)->send(new DatabaseBackupMail($path, $fileSize, $dbName));
         });
 
-        $this->components->info('Backup completed: ' . $filename . ' (' . round($fileSize / 1024 / 1024, 2) . ' MB)');
+        $this->components->info('Backup completed: '.$filename.' ('.round($fileSize / 1024 / 1024, 2).' MB)');
 
         return Command::SUCCESS;
     }

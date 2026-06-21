@@ -3,6 +3,7 @@
 use Flux\Flux;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -25,9 +26,12 @@ new #[Layout('layouts::auth.standalone')] #[Title('Set up your business')] class
 
     public string $receiptNotes = '';
 
+    #[Url]
+    public bool $add = false;
+
     public function mount(): void
     {
-        if (auth()->user()->business) {
+        if (! $this->add && activeBusiness()) {
             $this->redirect(route('dashboard', absolute: false), navigate: true);
         }
     }
@@ -42,6 +46,15 @@ new #[Layout('layouts::auth.standalone')] #[Title('Set up your business')] class
     public function previousStep(): void
     {
         $this->step--;
+    }
+
+    public function handleSubmit(): void
+    {
+        if ($this->step < 4) {
+            $this->nextStep();
+        } else {
+            $this->save();
+        }
     }
 
     public function save(): void
@@ -65,6 +78,8 @@ new #[Layout('layouts::auth.standalone')] #[Title('Set up your business')] class
         ]);
 
         auth()->user()->update(['business_id' => $business->id]);
+        auth()->user()->businesses()->syncWithoutDetaching([$business->id => ['role' => auth()->user()->role]]);
+        session(['active_business_id' => $business->id]);
 
         Flux::toast(variant: 'success', text: __('Business set up successfully!'));
 
@@ -91,7 +106,7 @@ new #[Layout('layouts::auth.standalone')] #[Title('Set up your business')] class
     }
 }; ?>
 
-<div class="flex min-h-svh flex-col items-center justify-center gap-6 bg-white p-6 dark:bg-linear-to-b dark:from-neutral-950 dark:to-neutral-900 md:p-10">
+<div class="flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
     <div class="flex w-full max-w-lg flex-col gap-2">
         <div class="flex flex-col gap-6">
             <div class="w-full rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
@@ -140,13 +155,13 @@ new #[Layout('layouts::auth.standalone')] #[Title('Set up your business')] class
                         </div>
                     </div>
 
-                    <form wire:submit="{{ $step < 4 ? 'nextStep' : 'save' }}">
+                    <form wire:submit="handleSubmit">
                         <div class="min-h-[280px]">
                             @if ($step === 1)
                                 <div class="space-y-6" wire:key="step-1">
                                     <div class="text-center">
-                                        <flux:heading size="xl">{{ __("What's your business called?") }}</flux:heading>
-                                        <flux:subheading class="mt-1">{{ __('This is how your clients will see you on invoices, quotes, and receipts.') }}</flux:subheading>
+                                        <flux:heading size="xl">{{ $add ? __('Add a new business') : __("What's your business called?") }}</flux:heading>
+                                        <flux:subheading class="mt-1">{{ $add ? __('Create a new business and switch to it.') : __('This is how your clients will see you on invoices, quotes, and receipts.') }}</flux:subheading>
                                     </div>
 
                                     <flux:field>
