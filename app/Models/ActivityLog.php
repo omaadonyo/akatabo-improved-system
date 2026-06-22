@@ -11,11 +11,14 @@ class ActivityLog extends Model
 
     protected $fillable = [
         'user_id',
-        'event_type',
+        'action',
         'description',
         'ip_address',
         'user_agent',
         'properties',
+        'business_id',
+        'subject_type',
+        'subject_id',
     ];
 
     protected function casts(): array
@@ -33,21 +36,27 @@ class ActivityLog extends Model
 
     public function scopeOfType($query, string $type)
     {
-        return $query->where('event_type', $type);
+        return $query->where('action', $type);
     }
 
     public static function log(
-        string $eventType,
+        string $action,
         string $description,
         ?array $properties = null,
+        ?int $businessId = null,
+        ?string $subjectType = null,
+        ?int $subjectId = null,
     ): self {
         return static::create([
             'user_id' => auth()->id(),
-            'event_type' => $eventType,
+            'action' => $action,
             'description' => $description,
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
             'properties' => $properties,
+            'business_id' => $businessId ?? activeBusinessId(),
+            'subject_type' => $subjectType,
+            'subject_id' => $subjectId,
         ]);
     }
 }

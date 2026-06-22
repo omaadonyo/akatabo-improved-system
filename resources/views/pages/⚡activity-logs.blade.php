@@ -19,25 +19,25 @@ new #[Title('Activity Logs')] class extends Component {
         $businessId = activeBusinessId();
 
         $logs = ActivityLog::with('user')
-            ->whereHas('user', fn($q) => $q->where('business_id', $businessId))
-            ->when($this->eventFilter, fn($q) => $q->where('event_type', $this->eventFilter))
+            ->where('business_id', $businessId)
+            ->when($this->eventFilter, fn($q) => $q->where('action', $this->eventFilter))
             ->when($this->dateFrom, fn($q) => $q->where('created_at', '>=', $this->dateFrom))
             ->when($this->dateTo, fn($q) => $q->where('created_at', '<=', $this->dateTo . ' 23:59:59'))
             ->latest('created_at')
             ->paginate(20);
 
-        $allLogs = ActivityLog::whereHas('user', fn($q) => $q->where('business_id', $businessId));
+        $allLogs = ActivityLog::where('business_id', $businessId);
 
         return [
             'logs' => $logs,
             'stats' => [
                 'total' => (clone $allLogs)->count(),
                 'today' => (clone $allLogs)->whereDate('created_at', today())->count(),
-                'logins' => (clone $allLogs)->where('event_type', 'login')->count(),
+                'logins' => (clone $allLogs)->where('action', 'login')->count(),
                 'uniqueUsers' => (clone $allLogs)->distinct('user_id')->count('user_id'),
             ],
-            'eventTypes' => (clone $allLogs)->selectRaw('event_type, COUNT(*) as count')
-                ->groupBy('event_type')
+            'eventTypes' => (clone $allLogs)->selectRaw('action, COUNT(*) as count')
+                ->groupBy('action')
                 ->orderByDesc('count')
                 ->get(),
         ];
@@ -111,7 +111,7 @@ new #[Title('Activity Logs')] class extends Component {
         <flux:select wire:model.live="eventFilter" class="w-44">
             <option value="">{{ __('All Events') }}</option>
             @foreach ($eventTypes as $et)
-                <option value="{{ $et->event_type }}">{{ ucfirst($et->event_type) }} ({{ $et->count }})</option>
+                <option value="{{ $et->action }}">{{ ucfirst($et->action) }} ({{ $et->count }})</option>
             @endforeach
         </flux:select>
         <flux:input wire:model.live="dateFrom" type="date" class="w-40" placeholder="{{ __('From') }}" />
@@ -136,7 +136,7 @@ new #[Title('Activity Logs')] class extends Component {
         <flux:table.rows>
             @forelse ($logs as $log)
                 @php
-                    $eventStyle = match($log->event_type) {
+                    $eventStyle = match($log->action) {
                         'login' => ['color' => 'blue', 'icon' => 'arrow-right-end-on-rectangle', 'bg' => 'bg-blue-50 dark:bg-blue-900/20'],
                         'logout' => ['color' => 'amber', 'icon' => 'arrow-left-end-on-rectangle', 'bg' => 'bg-amber-50 dark:bg-amber-900/20'],
                         'created' => ['color' => 'emerald', 'icon' => 'plus-circle', 'bg' => 'bg-emerald-50 dark:bg-emerald-900/20'],
@@ -151,7 +151,7 @@ new #[Title('Activity Logs')] class extends Component {
                 <flux:table.row>
                     <flux:table.cell>
                         <flux:badge :color="$eventStyle['color']" :icon="$eventStyle['icon']" size="sm">
-                            {{ ucfirst($log->event_type) }}
+                            {{ ucfirst($log->action) }}
                         </flux:badge>
                     </flux:table.cell>
                     <flux:table.cell>
