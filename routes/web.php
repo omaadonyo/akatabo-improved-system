@@ -86,6 +86,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('activity-logs', 'pages::activity-logs')->name('activity-logs')
         ->middleware('can:manage-users');
 
+    Route::livewire('rentals', 'pages::rentals')->name('rentals')
+        ->middleware('can:manage-customers');
+
     Route::livewire('customer-quotations', 'pages::customer-quotations')->name('customer-quotations');
 
     Route::get('/backups/{filename}', function (string $filename) {

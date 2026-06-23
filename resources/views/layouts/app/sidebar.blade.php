@@ -54,6 +54,10 @@
                         {{ __('Payments') }}
                     </flux:sidebar.item>
 
+                    <flux:sidebar.item icon="building-office" :href="route('rentals')" :current="request()->routeIs('rentals')" wire:navigate>
+                        {{ __('Rentals') }}
+                    </flux:sidebar.item>
+
                     <flux:sidebar.item icon="document-text" :href="route('customer-quotations')" :current="request()->routeIs('customer-quotations')" wire:navigate>
                         {{ __('Customer Requests') }}
                     </flux:sidebar.item>

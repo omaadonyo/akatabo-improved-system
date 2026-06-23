@@ -29,6 +29,7 @@ class Invoice extends Model
         'recurring_ended_at',
         'status',
         'quotation_id',
+        'rental_id',
         'paid_amount',
         'created_by',
         'updated_by',
@@ -75,6 +76,11 @@ class Invoice extends Model
     public function quotation(): BelongsTo
     {
         return $this->belongsTo(Quotation::class);
+    }
+
+    public function rental(): BelongsTo
+    {
+        return $this->belongsTo(Rental::class);
     }
 
     public function creator(): BelongsTo

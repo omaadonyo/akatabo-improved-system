@@ -49,6 +49,11 @@ class Business extends Model
         return $this->hasMany(ProductService::class);
     }
 
+    public function rentals(): HasMany
+    {
+        return $this->hasMany(Rental::class);
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

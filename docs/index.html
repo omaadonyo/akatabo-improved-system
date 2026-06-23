@@ -132,6 +132,9 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
 <h3>Payments / Receipts</h3>
 <p>List all payments with search. Methods: cash, bank, mobile_money, card, other. CSV export. Soft-deletes. Activity logged on creation and deletion.</p>
 
+<h3>Rentals</h3>
+<p>Room rental management with full lifecycle tracking. Create rentals linking rooms (from Inventory > Office Rentals) to customers. Track active/expired/cancelled status, duration, monthly rent, invoice history, and payment status. Stats dashboard shows active rentals, monthly revenue, tenant count, and overdue amounts. Generate one-off or recurring monthly invoices for each rental via the <code>invoices:process-recurring</code> artisan command.</p>
+
 <h3>Customer Requests (Fabric Quotations)</h3>
 <p>Public-facing forms for customers to submit fabric quotation requests. Admin reviews requests and responds with pricing/availability. Status workflow: pending &rarr; reviewed &rarr; responded.</p>
 
@@ -193,6 +196,7 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
 <tr><td><code>/invoices/{id}/edit</code></td><td><code>invoices.edit</code></td><td>auth+verified</td><td>Edit invoice</td></tr>
 <tr><td><code>/payments</code></td><td><code>payments</code></td><td>auth+verified</td><td>Payment list</td></tr>
 <tr><td><code>/payments/export/csv</code></td><td><code>payments.export</code></td><td>auth+verified</td><td>CSV download</td></tr>
+<tr><td><code>/rentals</code></td><td><code>rentals</code></td><td>auth+verified</td><td>Room rental management</td></tr>
 <tr><td><code>/customer-quotations</code></td><td><code>customer-quotations</code></td><td>auth+verified</td><td>Customer fabric requests</td></tr>
 <tr><td><code>/activity-logs</code></td><td><code>activity-logs</code></td><td>admin</td><td>Activity log viewer</td></tr>
 <tr><td><code>/users</code></td><td><code>users</code></td><td>admin</td><td>User management</td></tr>
@@ -217,11 +221,12 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
 <tr><td><code>products_services</code></td><td>type (product/service/office_rent), name, sku, buying/selling price, description, unit, image, quantity</td><td>belongsTo Business</td></tr>
 <tr><td><code>quotations</code></td><td>quotation_number, issue_date, valid_until, subtotal, discount/tax, total, notes, status</td><td>belongsTo Business/Customer, hasMany QuotationItems, hasMany Invoices</td></tr>
 <tr><td><code>quotation_items</code></td><td>type, item_id, description, quantity, unit_price, total, fulfilled_quantity</td><td>belongsTo Quotation</td></tr>
-<tr><td><code>invoices</code></td><td>invoice_number, issue_date, due_date, subtotal, discount/tax, total, notes, status, paid_amount, quotation_id, recurring_frequency, next_run_date</td><td>belongsTo Business/Customer/Quotation, hasMany InvoiceItems/Payments</td></tr>
+<tr><td><code>invoices</code></td><td>invoice_number, issue_date, due_date, subtotal, discount/tax, total, notes, status, paid_amount, quotation_id, rental_id, recurring_frequency, next_run_date</td><td>belongsTo Business/Customer/Quotation/Rental, hasMany InvoiceItems/Payments</td></tr>
 <tr><td><code>invoice_items</code></td><td>type, item_id, description, quantity, unit_price, total, fulfilled_quantity</td><td>belongsTo Invoice</td></tr>
 <tr><td><code>payments</code></td><td>receipt_number (unique), amount, payment_date, payment_method, reference, notes</td><td>belongsTo Invoice; softDeletes</td></tr>
 <tr><td><code>activity_logs</code></td><td>event_type, description, metadata (JSON), causer_id/type</td><td>morphTo causer</td></tr>
 <tr><td><code>customer_quotations</code></td><td>customer_name, email, phone, description, fabric_id, status, admin_response</td><td>belongsTo Fabric, belongsTo Business</td></tr>
+<tr><td><code>rentals</code></td><td>customer_id, room_id, start_date, end_date, monthly_rent, status (active/expired/cancelled), notes</td><td>belongsTo Business/Customer/Room (ProductService), hasMany Invoices</td></tr>
 </table>
 
 <p>Most business-owned tables include <code>created_by</code> / <code>updated_by</code> audit foreign keys. The <code>activity_logs</code> table uses a polymorphic <code>causer</code> relationship to track the user who performed each action.</p>
@@ -286,7 +291,7 @@ npm run build
 php artisan serve</code></pre>
 
 <p><strong>Queue:</strong> <code>php artisan queue:work</code> (database driver)<br>
-<strong>Recurring Invoices:</strong> <code>php artisan invoices:process-recurring</code> (schedule via cron)<br>
+<strong>Recurring Invoices:</strong> <code>php artisan invoices:process-recurring</code> (schedule via cron) — also auto-generates monthly rental invoices for active rentals<br>
 <strong>Theme:</strong> Toggle light/dark/system in Appearance settings</p>
 </section>
 
