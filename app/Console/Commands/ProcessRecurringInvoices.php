@@ -162,7 +162,7 @@ class ProcessRecurringInvoices extends Command
                 'rental_id' => $rental->id,
                 'invoice_number' => $number,
                 'issue_date' => $today->format('Y-m-d'),
-                'due_date' => $today->addDays(7)->format('Y-m-d'),
+                'due_date' => $today->addDays(30)->format('Y-m-d'),
                 'subtotal' => $rental->monthly_rent,
                 'discount_amount' => 0,
                 'tax_amount' => 0,

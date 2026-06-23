@@ -1,11 +1,13 @@
 <?php
 
+use App\Mail\RentalReminderMail;
 use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\ProductService;
 use App\Models\Rental;
 use Flux\Flux;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -25,6 +27,10 @@ new #[Title('Rentals')] class extends Component {
 
     public bool $showViewRentalModal = false;
     public $viewingRental = null;
+
+    public bool $showReminderModal = false;
+    public string $reminderMessage = '';
+    public $remindingRental = null;
 
     public ?int $customer_id = null;
     public ?int $room_id = null;
@@ -169,7 +175,7 @@ new #[Title('Rentals')] class extends Component {
             'rental_id' => $rental->id,
             'invoice_number' => $number,
             'issue_date' => now()->format('Y-m-d'),
-            'due_date' => now()->addDays(7)->format('Y-m-d'),
+            'due_date' => now()->addDays(30)->format('Y-m-d'),
             'subtotal' => $rental->monthly_rent,
             'discount_amount' => 0,
             'tax_amount' => 0,
@@ -196,6 +202,44 @@ new #[Title('Rentals')] class extends Component {
         Flux::toast(variant: 'success', text: __('Invoice :number generated.', ['number' => $number]));
 
         $this->viewingRental = $rental->fresh()->load(['customer', 'room', 'invoices' => fn($q) => $q->latest(), 'invoices.payments']);
+    }
+
+    public function composeReminder(Rental $rental): void
+    {
+        $this->remindingRental = $rental->load(['customer', 'room']);
+        $this->reminderMessage = __('Hi :name! Just a friendly reminder about your rent for :room. Please let me know if you have any questions. Thank you!', [
+            'name' => $rental->customer->name,
+            'room' => $rental->room->name,
+        ]);
+        $this->showReminderModal = true;
+    }
+
+    public function sendReminder(): void
+    {
+        $this->validate([
+            'reminderMessage' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $rental = $this->remindingRental;
+
+        if (!$rental || !$rental->customer->email) {
+            Flux::toast(variant: 'danger', text: __('Customer has no email address.'));
+            return;
+        }
+
+        try {
+            Mail::to($rental->customer->email)
+                ->send(new \App\Mail\RentalReminderMail($rental, $this->reminderMessage));
+
+            ActivityLog::log('sent', 'Rental reminder sent to ' . $rental->customer->name . ' for ' . $rental->room->name);
+            Flux::toast(variant: 'success', text: __('Reminder sent to :name.', ['name' => $rental->customer->name]));
+        } catch (\Exception $e) {
+            Flux::toast(variant: 'danger', text: __('Failed to send reminder: :error', ['error' => $e->getMessage()]));
+        }
+
+        $this->showReminderModal = false;
+        $this->reminderMessage = '';
+        $this->remindingRental = null;
     }
 
     private function resetForm(): void
@@ -244,7 +288,7 @@ new #[Title('Rentals')] class extends Component {
             <div class="absolute -bottom-4 -right-4 size-20 rounded-full bg-indigo-200/30 dark:bg-indigo-500/10 blur-2xl"></div>
             <div class="flex items-center gap-3">
                 <div class="flex size-10 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/40 shadow-sm">
-                    <flux:icon name="building" variant="solid" class="size-5 text-indigo-600 dark:text-indigo-400" />
+                    <flux:icon name="building" variant="micro" class="size-5 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div>
                     <div class="text-xs font-medium text-indigo-600 dark:text-indigo-300">{{ __('Active Rentals') }}</div>
@@ -257,7 +301,7 @@ new #[Title('Rentals')] class extends Component {
             <div class="absolute -bottom-4 -right-4 size-20 rounded-full bg-emerald-200/30 dark:bg-emerald-500/10 blur-2xl"></div>
             <div class="flex items-center gap-3">
                 <div class="flex size-10 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/40 shadow-sm">
-                    <flux:icon name="currency-dollar" variant="solid" class="size-5 text-emerald-600 dark:text-emerald-400" />
+                    <flux:icon name="currency-dollar" variant="micro" class="size-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
                     <div class="text-xs font-medium text-emerald-600 dark:text-emerald-300">{{ __('Monthly Revenue') }}</div>
@@ -270,7 +314,7 @@ new #[Title('Rentals')] class extends Component {
             <div class="absolute -bottom-4 -right-4 size-20 rounded-full bg-violet-200/30 dark:bg-violet-500/10 blur-2xl"></div>
             <div class="flex items-center gap-3">
                 <div class="flex size-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40 shadow-sm">
-                    <flux:icon name="users" variant="solid" class="size-5 text-violet-600 dark:text-violet-400" />
+                    <flux:icon name="users" variant="micro" class="size-5 text-violet-600 dark:text-violet-400" />
                 </div>
                 <div>
                     <div class="text-xs font-medium text-violet-600 dark:text-violet-300">{{ __('Active Tenants') }}</div>
@@ -283,7 +327,7 @@ new #[Title('Rentals')] class extends Component {
             <div class="absolute -bottom-4 -right-4 size-20 rounded-full bg-amber-200/30 dark:bg-amber-500/10 blur-2xl"></div>
             <div class="flex items-center gap-3">
                 <div class="flex size-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40 shadow-sm">
-                    <flux:icon name="clock" variant="solid" class="size-5 text-amber-600 dark:text-amber-400" />
+                    <flux:icon name="clock" variant="micro" class="size-5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
                     <div class="text-xs font-medium text-amber-600 dark:text-amber-300">{{ __('Overdue') }}</div>
@@ -574,6 +618,9 @@ new #[Title('Rentals')] class extends Component {
                                             @endif
                                         </div>
                                         <flux:badge :color="$invStatusColor" size="sm">{{ ucfirst($inv->status) }}</flux:badge>
+                                        @if (!in_array($inv->status, ['paid', 'cancelled']))
+                                            <flux:button wire:click="composeReminder({{ $viewingRental->id }})" variant="ghost" size="xs" icon="paper-airplane" class="text-indigo-400! hover:text-indigo-600!" title="{{ __('Send Reminder') }}" />
+                                        @endif
                                         <flux:button :href="route('invoices.edit', $inv->id)" variant="ghost" size="xs" icon="arrow-top-right-on-square" class="text-neutral-400!" wire:navigate />
                                     </div>
                                 </div>
@@ -598,6 +645,33 @@ new #[Title('Rentals')] class extends Component {
                     </flux:modal.close>
                 </div>
             </div>
+        @endif
+    </flux:modal>
+
+    {{-- Compose Reminder Modal --}}
+    <flux:modal wire:model="showReminderModal" class="max-w-lg">
+        @if ($remindingRental)
+            <form wire:submit="sendReminder" class="space-y-6">
+                <div>
+                    <flux:heading size="lg">{{ __('Send Friendly Reminder') }}</flux:heading>
+                    <flux:subheading>{{ __('Send a custom reminder to :name about :room.', ['name' => $remindingRental->customer->name, 'room' => $remindingRental->room->name]) }}</flux:subheading>
+                </div>
+
+                <flux:field>
+                    <flux:label>{{ __('Message') }}</flux:label>
+                    <flux:textarea wire:model="reminderMessage" rows="6" required />
+                    <flux:error name="reminderMessage" />
+                </flux:field>
+
+                <div class="flex justify-end gap-2">
+                    <flux:modal.close>
+                        <flux:button variant="filled">{{ __('Cancel') }}</flux:button>
+                    </flux:modal.close>
+                    <flux:button variant="primary" type="submit" icon="paper-airplane">
+                        {{ __('Send Reminder') }}
+                    </flux:button>
+                </div>
+            </form>
         @endif
     </flux:modal>
 </div>
