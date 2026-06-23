@@ -304,6 +304,9 @@ new #[Title('Create Invoice')] class extends Component {
         if ($this->editingId) {
             $invoice = Invoice::where('business_id', activeBusinessId())->findOrFail($this->editingId);
             $data['updated_by'] = auth()->id();
+            $paidBefore = (float) $invoice->paid_amount;
+            $newStatus = $paidBefore >= (float) $this->total ? 'paid' : ($paidBefore > 0 ? 'partial' : $invoice->status);
+            $data['status'] = $newStatus;
             $invoice->update($data);
             $invoice->items()->delete();
             foreach ($this->items as $item) {
@@ -389,7 +392,8 @@ new #[Title('Create Invoice')] class extends Component {
         ]);
 
         $paid = $invoice->payments()->sum('amount');
-        $invoice->update(['paid_amount' => $paid, 'updated_by' => auth()->id()]);
+        $newStatus = $paid >= (float) $invoice->total ? 'paid' : ($paid > 0 ? 'partial' : $invoice->status);
+        $invoice->update(['paid_amount' => $paid, 'status' => $newStatus, 'updated_by' => auth()->id()]);
         $this->paid_amount = (float) $paid;
 
         $this->payment_amount = max(0, $this->total - $this->paid_amount);
@@ -411,7 +415,8 @@ new #[Title('Create Invoice')] class extends Component {
         $invoice = Invoice::find($this->editingId);
         if ($invoice) {
             $paid = $invoice->payments()->sum('amount');
-            $invoice->update(['paid_amount' => $paid, 'updated_by' => auth()->id()]);
+            $newStatus = $paid >= (float) $invoice->total ? 'paid' : ($paid > 0 ? 'partial' : 'sent');
+            $invoice->update(['paid_amount' => $paid, 'status' => $newStatus, 'updated_by' => auth()->id()]);
             $this->paid_amount = (float) $paid;
         }
 
