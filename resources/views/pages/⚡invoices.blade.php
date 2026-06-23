@@ -172,10 +172,11 @@ new #[Title('Invoices')] class extends Component {
                         <flux:table.cell>{{ $invoice->due_date?->format('d M Y') ?? '—' }}</flux:table.cell>
                         <flux:table.cell align="end" class="font-medium">UGX {{ number_format($invoice->total, 2) }}</flux:table.cell>
                         <flux:table.cell class="font-medium">
-                            @if ((float) $invoice->paid_amount >= (float) $invoice->total)
-                                <span class="text-green-600">UGX {{ number_format($invoice->paid_amount, 2) }}</span>
-                            @elseif ((float) $invoice->paid_amount > 0)
-                                <span class="text-amber-600">UGX {{ number_format($invoice->paid_amount, 2) }}</span>
+                            @php $paid = (float) $invoice->paid_amount; $total = (float) $invoice->total; @endphp
+                            @if ($paid >= $total)
+                                <span class="text-green-600">UGX {{ number_format($total, 2) }}</span>
+                            @elseif ($paid > 0)
+                                <span class="text-amber-600">UGX {{ number_format($paid, 2) }} / UGX {{ number_format($total, 2) }}</span>
                             @else
                                 <span class="text-neutral-400">—</span>
                             @endif
