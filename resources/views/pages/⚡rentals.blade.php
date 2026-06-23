@@ -618,7 +618,7 @@ new #[Title('Rentals')] class extends Component {
                                             @endif
                                         </div>
                                         <flux:badge :color="$invStatusColor" size="sm">{{ ucfirst($inv->status) }}</flux:badge>
-                                        @if (!in_array($inv->status, ['paid', 'cancelled']))
+                                        @if (in_array($inv->status, ['sent', 'partial', 'overdue']))
                                             <flux:button wire:click="composeReminder({{ $viewingRental->id }})" variant="ghost" size="xs" icon="paper-airplane" class="text-indigo-400! hover:text-indigo-600!" title="{{ __('Send Reminder') }}" />
                                         @endif
                                         <flux:button :href="route('invoices.edit', $inv->id)" variant="ghost" size="xs" icon="arrow-top-right-on-square" class="text-neutral-400!" wire:navigate />
