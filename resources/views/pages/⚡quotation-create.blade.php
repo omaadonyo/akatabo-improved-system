@@ -399,56 +399,26 @@ new #[Title('Create Quotation')] class extends Component {
 
 <style>
     @media print {
-        @page { size: A4; margin: 2.54cm; }
-
         .no-print { display: none !important; }
-
-        body {
-            display: block !important;
-            background: white !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-        }
-        html { background: white !important; }
-
-        [data-flux-sidebar],
-        [data-flux-header] { display: none !important; }
-
-        [data-flux-main] {
-            display: block !important;
-            width: 100% !important;
-            padding: 0 !important;
-            background: white !important;
-        }
-
-        [data-print-area] {
-            padding: 0 !important;
-            border: none !important;
-            box-shadow: none !important;
-            border-radius: 0 !important;
-        }
-        [data-print-area], [data-print-area] * {
-            background: white !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-        }
-
-        .dark\:text-white,
-        .dark\:text-neutral-300 { color: #171717 !important; }
-        .dark\:text-neutral-400 { color: #737373 !important; }
-        .dark\:bg-neutral-900,
-        .dark\:bg-neutral-800 { background: #fafafa !important; }
-        .dark\:border-neutral-700 { border-color: #e5e7eb !important; }
-
-        .grid { display: block !important; }
-        [style*="width: 80"],
-        [style*="width: 90"] { width: 100% !important; max-width: none !important; margin: 0 !important; }
-        [style*="margin: 0 auto"] { margin: 0 !important; }
-        .lg\:grid-cols-2 { display: block !important; }
+        [data-print-area] { border: none !important; box-shadow: none !important; border-radius: 0 !important; }
+        body { background: white !important; }
     }
 </style>
+<script>
+    function printPreview(id) {
+        var el = document.querySelector('[data-print-area]');
+        if (!el) return;
+        var css = document.querySelector('link[rel="stylesheet"]');
+        var win = window.open('', '', 'width=800,height=600');
+        win.document.write('<!DOCTYPE html><html><head>' +
+            (css ? '<link rel="stylesheet" href="' + css.href + '">' : '') +
+            '<style>@page{margin:0}body{background:#fff;padding:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}[data-print-area]{border:none!important;box-shadow:none!important;border-radius:0!important;padding:0!important}</style>' +
+            '</head><body>' + el.outerHTML + '</body></html>');
+        win.document.close();
+        win.focus();
+        setTimeout(function(){ win.print(); }, 300);
+    }
+</script>
 <div style="width: 90%; margin: 0 auto;">
     <div class="mb-6 flex items-center justify-between no-print">
         <div>
@@ -457,7 +427,7 @@ new #[Title('Create Quotation')] class extends Component {
         </div>
         <div class="flex items-center gap-3">
             <flux:button variant="ghost" :href="route('quotations')" wire:navigate icon="arrow-left">{{ __('Back to Quotations') }}</flux:button>
-            <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:from-indigo-600 hover:to-violet-600 hover:shadow-lg active:scale-[0.97]">
+            <button type="button" onclick="printPreview()" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:from-indigo-600 hover:to-violet-600 hover:shadow-lg active:scale-[0.97]">
                 <flux:icon name="printer" variant="micro" class="size-4" />
                 {{ __('Print') }}
             </button>
