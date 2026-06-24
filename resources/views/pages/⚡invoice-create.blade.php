@@ -499,19 +499,21 @@ new #[Title('Create Invoice')] class extends Component {
     }
 </style>
 <script>
-    function printPreview(id) {
+    window.printPreview = function() {
         var el = document.querySelector('[data-print-area]');
         if (!el) return;
         var css = document.querySelector('link[rel="stylesheet"]');
-        var win = window.open('', '', 'width=800,height=600');
-        win.document.write('<!DOCTYPE html><html><head>' +
+        var html = '<!DOCTYPE html><html><head>' +
             (css ? '<link rel="stylesheet" href="' + css.href + '">' : '') +
             '<style>@page{margin:0}body{background:#fff;padding:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}[data-print-area]{border:none!important;box-shadow:none!important;border-radius:0!important;padding:0!important}</style>' +
-            '</head><body>' + el.outerHTML + '</body></html>');
+            '</head><body>' + el.outerHTML + '</body></html>';
+        var win = window.open('', '_blank', 'width=800,height=600');
+        if (!win) { alert('Please allow popups for printing.'); return; }
+        win.document.write(html);
         win.document.close();
         win.focus();
-        setTimeout(function(){ win.print(); }, 300);
-    }
+        setTimeout(function() { win.print(); }, 500);
+    };
 </script>
 <div style="width: 90%; margin: 0 auto;">
     <div class="mb-6 flex items-center justify-between no-print">
@@ -521,7 +523,7 @@ new #[Title('Create Invoice')] class extends Component {
         </div>
         <div class="flex items-center gap-3">
             <flux:button variant="ghost" :href="route('invoices')" wire:navigate icon="arrow-left">{{ __('Back to Invoices') }}</flux:button>
-            <button type="button" onclick="printPreview()" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:from-indigo-600 hover:to-violet-600 hover:shadow-lg active:scale-[0.97]">
+            <button type="button" x-data x-on:click="window.printPreview()" class="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:from-indigo-600 hover:to-violet-600 hover:shadow-lg active:scale-[0.97]">
                 <flux:icon name="printer" variant="micro" class="size-4" />
                 {{ __('Print') }}
             </button>
