@@ -94,3 +94,7 @@ dialog[open]::backdrop {
     scrollbar-width: thin;
     scrollbar-color: hsl(239 84% 67% / 0.3) transparent;
 }
+
+[x-cloak] {
+    display: none !important;
+}
