@@ -493,13 +493,33 @@ new #[Title('Create Invoice')] class extends Component {
 
 <style>
     @media print {
+        @page { size: A4; margin: 2.54cm; }
+
         .no-print { display: none !important; }
-        [data-print-area] {
-            position: absolute !important; top: 0 !important; left: 0 !important;
-            width: 100% !important; border: none !important; box-shadow: none !important;
-            border-radius: 0 !important; padding: 35px !important; background: white !important;
+
+        body, [data-print-area] {
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
         }
-        body { background: white !important; margin: 0 !important; }
+        body { margin: 0 !important; padding: 0 !important; }
+
+        [data-print-area] {
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+        }
+
+        .dark\:text-white,
+        .dark\:text-neutral-300 { color: #171717 !important; }
+        .dark\:text-neutral-400 { color: #737373 !important; }
+        .dark\:bg-neutral-900,
+        .dark\:bg-neutral-800 { background: #fafafa !important; }
+        .dark\:border-neutral-700 { border-color: #e5e7eb !important; }
+
+        .grid { display: block !important; }
+        [style*="width: 80"] { width: 100% !important; max-width: none !important; margin: 0 !important; }
     }
 </style>
 <div style="width: 80%; margin: 0 auto;">
@@ -519,7 +539,7 @@ new #[Title('Create Invoice')] class extends Component {
 
     <div class="grid grid-cols-1 gap-16 lg:grid-cols-2">
         {{-- LEFT: Form --}}
-        <div class="space-y-6">
+        <div class="space-y-6 no-print">
             <form wire:submit="save" class="space-y-6">
                 {{-- Customer --}}
                 <flux:field>
