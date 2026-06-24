@@ -491,13 +491,30 @@ new #[Title('Create Invoice')] class extends Component {
     }
 }; ?>
 
+<style>
+    @media print {
+        .no-print { display: none !important; }
+        [data-print-area] {
+            position: absolute !important; top: 0 !important; left: 0 !important;
+            width: 100% !important; border: none !important; box-shadow: none !important;
+            border-radius: 0 !important; padding: 35px !important; background: white !important;
+        }
+        body { background: white !important; margin: 0 !important; }
+    }
+</style>
 <div style="width: 80%; margin: 0 auto;">
-    <div class="mb-6 flex items-center justify-between">
+    <div class="mb-6 flex items-center justify-between no-print">
         <div>
             <flux:heading size="xl">{{ $editingId ? __('Edit Invoice') : __('New Invoice') }}</flux:heading>
             <flux:subheading class="mt-1">{{ __('Fill in the details below. The preview updates in real time.') }}</flux:subheading>
         </div>
-        <flux:button variant="ghost" :href="route('invoices')" wire:navigate>{{ __('Back to Invoices') }}</flux:button>
+        <div class="flex items-center gap-3">
+            <flux:button variant="ghost" :href="route('invoices')" wire:navigate icon="arrow-left">{{ __('Back to Invoices') }}</flux:button>
+            <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:from-indigo-600 hover:to-violet-600 hover:shadow-lg active:scale-[0.97]">
+                <flux:icon name="printer" variant="micro" class="size-4" />
+                {{ __('Print') }}
+            </button>
+        </div>
     </div>
 
     <div class="grid grid-cols-1 gap-16 lg:grid-cols-2">
@@ -721,8 +738,8 @@ new #[Title('Create Invoice')] class extends Component {
         {{-- RIGHT: Preview --}}
         <div>
             <div class="sticky top-8">
-                <flux:heading size="sm" class="mb-3">{{ __('Preview') }}</flux:heading>
-                <div class="rounded-xl border border-neutral-200 bg-white p-8 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <flux:heading size="sm" class="mb-3 no-print">{{ __('Preview') }}</flux:heading>
+                <div data-print-area class="rounded-xl border border-neutral-200 bg-white p-8 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     {{-- Header --}}
                     <div class="flex items-start justify-between">
                         <div>
