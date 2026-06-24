@@ -502,10 +502,14 @@ new #[Title('Create Invoice')] class extends Component {
     window.printPreview = function() {
         var el = document.querySelector('[data-print-area]');
         if (!el) return;
+        var biz = (el.querySelector('h2')?.textContent || '').trim() || 'Business';
+        var type = (el.querySelector('h1')?.textContent || '').trim() || 'Document';
+        var num = (el.querySelector('p.font-mono')?.textContent || '').trim() || '';
+        var title = biz + '_' + type + (num ? '_' + num : '');
         var css = document.querySelector('link[rel="stylesheet"]');
-        var html = '<!DOCTYPE html><html><head>' +
+        var html = '<!DOCTYPE html><html><head><title>' + title + '</title>' +
             (css ? '<link rel="stylesheet" href="' + css.href + '">' : '') +
-            '<style>@page{size:A4;margin:2.54cm}body{background:#fff;padding:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}[data-print-area]{border:none!important;box-shadow:none!important;border-radius:0!important;padding:0!important}</style>' +
+            '<style>@page{size:A4;margin:1.5cm}body{background:#fff;padding:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}[data-print-area]{border:none!important;box-shadow:none!important;border-radius:0!important;padding:0!important}</style>' +
             '</head><body>' + el.outerHTML + '</body></html>';
         var win = window.open('', '_blank', 'width=800,height=600');
         if (!win) { alert('Please allow popups for printing.'); return; }
