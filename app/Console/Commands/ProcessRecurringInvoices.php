@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Mail\OverdueInvoiceMail;
 use App\Mail\PaymentReminderMail;
 use App\Models\Invoice;
 use App\Models\Rental;
@@ -123,6 +124,36 @@ class ProcessRecurringInvoices extends Command
         $count = $invoices->count();
         if ($count > 0) {
             $this->components->info("Sent {$count} payment reminder(s).");
+        }
+
+        $this->sendOverdueReminders();
+    }
+
+    protected function sendOverdueReminders(): void
+    {
+        $today = CarbonImmutable::today();
+
+        $overdueInvoices = Invoice::with(['customer', 'business'])
+            ->where('due_date', '<', $today)
+            ->whereRaw('(total - paid_amount) > 0')
+            ->whereHas('customer', fn($q) => $q->whereNotNull('email'))
+            ->get();
+
+        foreach ($overdueInvoices as $invoice) {
+            $overdueDays = (int) $today->diffInDays($invoice->due_date);
+            $this->components->task('Sending overdue notice for ' . $invoice->invoice_number, function () use ($invoice, $overdueDays) {
+                try {
+                    Mail::to($invoice->customer->email)
+                        ->send(new OverdueInvoiceMail($invoice, $overdueDays));
+                } catch (\Exception $e) {
+                    $this->components->warn('Failed to send: ' . $e->getMessage());
+                }
+            });
+        }
+
+        $count = $overdueInvoices->count();
+        if ($count > 0) {
+            $this->components->info("Sent {$count} overdue notice(s).");
         }
     }
 

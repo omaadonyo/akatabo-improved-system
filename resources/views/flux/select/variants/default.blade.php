@@ -36,13 +36,21 @@ $panelClasses = 'absolute z-50 mt-1.5 w-full rounded-xl border border-zinc-200 b
         open: false,
         search: '',
         highlightedValue: null,
+        selectedValue: '',
 
-        get selectedValue() {
-            return this.$refs.select.value;
+        init() {
+            this.selectedValue = this.$refs.select?.value ?? '';
+            this.$watch('selectedValue', val => {
+                this.$refs.select && (this.$refs.select.value = val);
+            });
         },
         get selectedLabel() {
             const select = this.$refs.select;
             if (!select) return '';
+            const val = this.selectedValue;
+            for (const opt of select.options) {
+                if (opt.value == val && !opt.disabled) return opt.textContent.trim();
+            }
             const opt = select.options[select.selectedIndex];
             if (!opt || (opt.disabled && opt.value === '')) return '';
             return opt.textContent.trim();
@@ -81,9 +89,14 @@ $panelClasses = 'absolute z-50 mt-1.5 w-full rounded-xl border border-zinc-200 b
         select(value) {
             const select = this.$refs.select;
             if (!select || select.disabled) return;
+            this.selectedValue = value;
             select.value = value;
             select.dispatchEvent(new Event('input', { bubbles: true }));
             select.dispatchEvent(new Event('change', { bubbles: true }));
+            try {
+                const model = select.getAttribute('wire:model');
+                if (model && this.$wire) this.$wire.set(model, value);
+            } catch(e) {}
             this.search = '';
             this.highlightedValue = null;
             this.open = false;

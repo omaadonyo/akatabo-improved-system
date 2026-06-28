@@ -1,12 +1,14 @@
 <?php
 
 use App\Helpers\QrCode;
+use App\Mail\PaymentReceiptMail;
 use App\Models\Customer;
 use App\Models\Fabric;
 use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\ProductService;
 use Flux\Flux;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -401,6 +403,21 @@ new #[Title('Create Invoice')] class extends Component {
         $this->payment_method = 'cash';
         $this->payment_reference = '';
         $this->payment_notes = '';
+
+        try {
+            $payment = $invoice->payments()->latest()->first();
+            $customerEmail = $invoice->customer?->email;
+            $businessEmail = $this->business?->email;
+            if ($customerEmail) {
+                Mail::to($customerEmail)
+                    ->when($businessEmail && $businessEmail !== $customerEmail, fn($m) => $m->cc($businessEmail))
+                    ->send(new PaymentReceiptMail($invoice, $payment));
+            }
+            if (! $customerEmail && $businessEmail) {
+                Mail::to($businessEmail)
+                    ->send(new PaymentReceiptMail($invoice, $payment, isAdminCopy: true));
+            }
+        } catch (\Exception $e) {}
 
         ActivityLog::log('recorded', 'Payment ' . $receiptNumber . ' recorded for invoice ' . $invoice->invoice_number);
         Flux::toast(variant: 'success', text: __('Receipt ' . $receiptNumber . ' recorded.'));

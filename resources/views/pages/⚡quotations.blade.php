@@ -1,9 +1,11 @@
 <?php
 
+use App\Mail\QuotationConvertedMail;
 use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\Quotation;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -85,6 +87,20 @@ new #[Title('Quotations')] class extends Component {
         }
 
         $quotation->update(['status' => 'converted', 'updated_by' => auth()->id()]);
+
+        try {
+            $customerEmail = $quotation->customer?->email;
+            $businessEmail = activeBusiness()?->email;
+            if ($customerEmail) {
+                Mail::to($customerEmail)
+                    ->when($businessEmail && $businessEmail !== $customerEmail, fn($m) => $m->cc($businessEmail))
+                    ->send(new QuotationConvertedMail($quotation, $invoice));
+            }
+            if (! $customerEmail && $businessEmail) {
+                Mail::to($businessEmail)
+                    ->send(new QuotationConvertedMail($quotation, $invoice));
+            }
+        } catch (\Exception $e) {}
 
         ActivityLog::log('converted', 'Quotation ' . $quotation->quotation_number . ' converted to invoice ' . $invoiceNumber);
         Flux::toast(variant: 'success', text: __('Quotation converted to invoice.'));

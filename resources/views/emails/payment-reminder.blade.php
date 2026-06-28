@@ -1,19 +1,28 @@
-<x-mail::message>
-# {{ __('Payment Reminder') }}
+<x-mail-layout title="Payment Reminder" :business="$invoice->business ?? null">
+    <h2>{{ __('Payment Reminder') }}</h2>
+    <p>{{ __('Dear :name,', ['name' => $invoice->customer?->name ?? __('Valued Customer')]) }}</p>
+    <p>{{ __('This is a reminder that invoice :number is due soon.', ['number' => strtoupper($invoice->invoice_number)]) }}</p>
 
-{{ __('Dear :name,', ['name' => $invoice->customer?->name ?? 'Valued Customer']) }}
-
-{{ __('This is a reminder that invoice **:number** is due on **:date**.', ['number' => $invoice->invoice_number, 'date' => $invoice->due_date?->format('d M Y') ?? 'N/A']) }}
-
-**{{ __('Amount Due:') }}** UGX {{ number_format(max(0, (float) $invoice->total - (float) $invoice->paid_amount), 2) }}
-
-<x-mail::button :url="route('invoices')">
-{{ __('View Invoice') }}
-</x-mail::button>
-
-{{ __('If you have already made the payment, please disregard this message.') }}
-
-{{ __('Thank you for your business!') }}
-
-{{ $invoice->business->name ?? '' }}
-</x-mail::message>
+    <div class="details">
+        <div class="row">
+            <span class="label">{{ __('Invoice') }}</span>
+            <span class="value">{{ strtoupper($invoice->invoice_number) }}</span>
+        </div>
+        <div class="row">
+            <span class="label">{{ __('Issue Date') }}</span>
+            <span class="value">{{ $invoice->issue_date?->format('d M Y') }}</span>
+        </div>
+        <div class="row">
+            <span class="label">{{ __('Due Date') }}</span>
+            <span class="value">{{ $invoice->due_date?->format('d M Y') }}</span>
+        </div>
+        <div class="row">
+            <span class="label">{{ __('Amount') }}</span>
+            <span class="value">UGX {{ number_format($invoice->total, 2) }}</span>
+        </div>
+        <div class="row" style="border-bottom: none;">
+            <span class="label">{{ __('Balance') }}</span>
+            <span class="value">UGX {{ number_format(max(0, $invoice->total - $invoice->paid_amount), 2) }}</span>
+        </div>
+    </div>
+</x-mail-layout>

@@ -1,12 +1,14 @@
 <?php
 
 use App\Helpers\QrCode;
+use App\Mail\QuotationConvertedMail;
 use App\Models\Customer;
 use App\Models\Fabric;
 use App\Models\Invoice;
 use App\Models\ProductService;
 use App\Models\Quotation;
 use Flux\Flux;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -335,6 +337,20 @@ new #[Title('Create Quotation')] class extends Component {
         }
 
         $quotation->update(['status' => 'converted', 'updated_by' => auth()->id()]);
+
+        try {
+            $customerEmail = $quotation->customer?->email;
+            $businessEmail = activeBusiness()?->email;
+            if ($customerEmail) {
+                Mail::to($customerEmail)
+                    ->when($businessEmail && $businessEmail !== $customerEmail, fn($m) => $m->cc($businessEmail))
+                    ->send(new QuotationConvertedMail($quotation, $invoice));
+            }
+            if (! $customerEmail && $businessEmail) {
+                Mail::to($businessEmail)
+                    ->send(new QuotationConvertedMail($quotation, $invoice));
+            }
+        } catch (\Exception $e) {}
 
         Flux::toast(variant: 'success', text: __('Quotation converted to invoice.'));
         $this->redirect(route('invoices.edit', $invoice->id), navigate: true);

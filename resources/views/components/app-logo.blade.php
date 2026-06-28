@@ -3,25 +3,19 @@
 ])
 
 @php
-    $brandName = activeBusiness()?->name ?? __('Laravel Starter Kit');
-    $words = explode(' ', $brandName);
-    if (count($words) > 2) {
-        $firstLine = implode(' ', array_slice($words, 0, 2));
-        $secondLine = implode(' ', array_slice($words, 2));
-        $brandName = $firstLine . "\n" . $secondLine;
-    }
+    $brandName = activeBusiness()?->name ?? config('app.name', 'NAKUNDA BUSINESS SOLUTIONS');
 @endphp
 
 @if($sidebar)
-    <flux:sidebar.brand :name="$brandName" {{ $attributes }}  style="width:210px;">
-        <x-slot name="logo" class="flex aspect-square size-8 items-center justify-center rounded-md bg-accent-content text-accent-foreground">
-            <x-app-logo-icon class="size-5 fill-current text-white dark:text-black" />
+    <flux:sidebar.brand :name="$brandName" {{ $attributes }}>
+        <x-slot name="logo">
+            <img src="{{ asset('logos/favicon.png') }}" alt="{{ $brandName }}" class="size- object-contain" style="width: 27px;">
         </x-slot>
     </flux:sidebar.brand>
 @else
-    <flux:brand :name="$brandNewName" {{ $attributes }}>
-        <x-slot name="logo" class="flex aspect-square size-8 items-center justify-center rounded-md bg-accent-content text-accent-foreground">
-            <x-app-logo-icon class="size-5 fill-current text-white dark:text-black" />
+    <flux:brand :name="$brandName" {{ $attributes }}>
+        <x-slot name="logo">
+            <img src="{{ asset('logos/favicon.png') }}" alt="{{ $brandName }}" class="h- w-auto" style="width: 27px;">
         </x-slot>
     </flux:brand>
 @endif

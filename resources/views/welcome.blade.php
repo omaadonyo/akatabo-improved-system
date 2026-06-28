@@ -15,8 +15,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ config('app.name', 'Akatabo') }}</title>
-    <link rel="icon" href="/favicon.ico" sizes="any">
+    <title>{{ config('app.name', 'NAKUNDA BUSINESS SOLUTIONS') }}</title>
+    <link rel="icon" href="{{ asset('logos/favicon.png') }}" type="image/png">
+
     @fonts
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>html{scrollbar-width:none}body{overflow:hidden}</style>
@@ -33,10 +34,7 @@
     {{-- Top bar --}}
     <div class="flex shrink-0 items-center justify-between border-b border-zinc-800/50 px-6 py-4 lg:px-10">
         <div class="flex items-center gap-2.5">
-            <div class="flex size-8 items-center justify-center rounded-lg bg-indigo-500/10">
-                <svg class="size-5 text-indigo-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="12" x="3" y="7" rx="2"/><path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/><path d="M12 12v4"/><path d="M8 16h8"/></svg>
-            </div>
-            <span class="text-base font-bold tracking-tight">{{ config('app.name', 'Akatabo') }}</span>
+            <img src="{{ asset('logos/logo-white.png') }}" alt="{{ config('app.name', 'Akatabo') }}" class="h-8 w-auto">
         </div>
         <div class="flex items-center gap-3">
             @if (Route::has('login'))

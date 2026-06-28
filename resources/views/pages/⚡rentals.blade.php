@@ -305,7 +305,7 @@ new #[Title('Rentals')] class extends Component {
                 </div>
                 <div>
                     <div class="text-xs font-medium text-emerald-600 dark:text-emerald-300">{{ __('Monthly Revenue') }}</div>
-                    <div class="text-xl font-bold text-emerald-900 dark:text-emerald-100">${{ number_format($monthlyRevenue, 2) }}</div>
+                    <div class="text-xl font-bold text-emerald-900 dark:text-emerald-100">UGX {{ number_format($monthlyRevenue, 2) }}</div>
                 </div>
             </div>
         </flux:card>
@@ -331,7 +331,7 @@ new #[Title('Rentals')] class extends Component {
                 </div>
                 <div>
                     <div class="text-xs font-medium text-amber-600 dark:text-amber-300">{{ __('Overdue') }}</div>
-                    <div class="text-xl font-bold text-amber-900 dark:text-amber-100">${{ number_format(max(0, $overdueInvoices), 2) }}</div>
+                    <div class="text-xl font-bold text-amber-900 dark:text-amber-100">UGX {{ number_format(max(0, $overdueInvoices), 2) }}</div>
                 </div>
             </div>
         </flux:card>
@@ -393,7 +393,7 @@ new #[Title('Rentals')] class extends Component {
                         <div class="text-xs text-neutral-500">{{ $months }} {{ Str::plural('month', $months) }}</div>
                     </flux:table.cell>
                     <flux:table.cell>
-                        <span class="font-medium">${{ number_format($rental->monthly_rent, 2) }}</span>
+                        <span class="font-medium">UGX {{ number_format($rental->monthly_rent, 2) }}</span>
                     </flux:table.cell>
                     <flux:table.cell>
                         @php
@@ -409,12 +409,12 @@ new #[Title('Rentals')] class extends Component {
                     <flux:table.cell>
                         <div class="text-sm">
                             <span class="{{ $paid >= $expected ? 'text-emerald-600' : 'text-amber-600' }}">
-                                ${{ number_format($paid, 2) }}
+                                UGX {{ number_format($paid, 2) }}
                             </span>
-                            / ${{ number_format($expected, 2) }}
+                            / UGX {{ number_format($expected, 2) }}
                         </div>
                         @if ($balance > 0)
-                            <div class="text-xs text-red-500">{{ __('Balance: $:amount', ['amount' => number_format($balance, 2)]) }}</div>
+                            <div class="text-xs text-red-500">{{ __('Balance: UGX :amount', ['amount' => number_format($balance, 2)]) }}</div>
                         @endif
                     </flux:table.cell>
                     <flux:table.cell align="end">
@@ -465,7 +465,7 @@ new #[Title('Rentals')] class extends Component {
                 <flux:select wire:model="room_id" required searchable>
                     <option value="">-- {{ __('Select room') }} --</option>
                     @foreach ($this->rooms as $room)
-                        <option value="{{ $room->id }}">{{ $room->name }} @if($room->selling_price) (${{ number_format($room->selling_price, 2) }}/mo) @endif</option>
+                        <option value="{{ $room->id }}">{{ $room->name }} @if($room->selling_price) (UGX {{ number_format($room->selling_price, 2) }}/mo) @endif</option>
                     @endforeach
                 </flux:select>
                 <flux:error name="room_id" />
@@ -543,7 +543,7 @@ new #[Title('Rentals')] class extends Component {
                     </div>
                     <div>
                         <flux:label>{{ __('Monthly Rent') }}</flux:label>
-                        <p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">${{ number_format($viewingRental->monthly_rent, 2) }}</p>
+                        <p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">UGX {{ number_format($viewingRental->monthly_rent, 2) }}</p>
                     </div>
                     <div>
                         <flux:label>{{ __('Duration') }}</flux:label>
@@ -557,9 +557,9 @@ new #[Title('Rentals')] class extends Component {
                     <div>
                         <flux:label>{{ __('Expected vs Paid') }}</flux:label>
                         <p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">
-                            ${{ number_format($viewingRental->totalPaid(), 2) }} / ${{ number_format($viewingRental->totalExpected(), 2) }}
+                            UGX {{ number_format($viewingRental->totalPaid(), 2) }} / UGX {{ number_format($viewingRental->totalExpected(), 2) }}
                             @if ($viewingRental->balance() > 0)
-                                <span class="text-red-500">(${{ number_format($viewingRental->balance(), 2) }} {{ __('outstanding') }})</span>
+                                <span class="text-red-500">(UGX {{ number_format($viewingRental->balance(), 2) }} {{ __('outstanding') }})</span>
                             @endif
                         </p>
                     </div>
@@ -612,9 +612,9 @@ new #[Title('Rentals')] class extends Component {
                                     </div>
                                     <div class="flex items-center gap-3">
                                         <div class="text-right">
-                                            <div class="text-sm font-medium text-neutral-900 dark:text-white">${{ number_format($invTotal, 2) }}</div>
+                                            <div class="text-sm font-medium text-neutral-900 dark:text-white">UGX {{ number_format($invTotal, 2) }}</div>
                                             @if ($invPaid > 0)
-                                                <div class="text-xs text-emerald-600">{{ __('Paid: $:amount', ['amount' => number_format($invPaid, 2)]) }}</div>
+                                                <div class="text-xs text-emerald-600">{{ __('Paid: UGX :amount', ['amount' => number_format($invPaid, 2)]) }}</div>
                                             @endif
                                         </div>
                                         <flux:badge :color="$invStatusColor" size="sm">{{ ucfirst($inv->status) }}</flux:badge>

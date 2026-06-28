@@ -4,7 +4,9 @@ use App\Http\Controllers\FabricLandingController;
 use App\Models\Payment;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome')->name('home');
+Route::get('/', [FabricLandingController::class, 'index'])->name('home');
+
+Route::redirect('/register', '/login')->name('register');
 
 Route::prefix('fabrics')->name('fabrics.')->group(function () {
     Route::get('/', [FabricLandingController::class, 'index'])->name('index');

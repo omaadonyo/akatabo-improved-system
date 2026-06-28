@@ -28,7 +28,7 @@ new #[Title('Business settings')] class extends Component {
 
     public function mount(): void
     {
-        $business = Auth::user()->business;
+        $business = activeBusiness();
 
         if (! $business) {
             $this->redirect(route('onboarding', absolute: false), navigate: true);
@@ -56,7 +56,7 @@ new #[Title('Business settings')] class extends Component {
             'receiptNotes' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $business = Auth::user()->business;
+        $business = activeBusiness();
 
         $logoPath = $business->logo;
 
@@ -80,9 +80,19 @@ new #[Title('Business settings')] class extends Component {
         Flux::toast(variant: 'success', text: __('Business settings updated.'));
     }
 
+    public function logoPreviewUrl(): ?string
+    {
+        if (! $this->logo) return null;
+        try {
+            return $this->logo->temporaryUrl();
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
     public function removeLogo(): void
     {
-        $business = Auth::user()->business;
+        $business = activeBusiness();
 
         if ($business->logo) {
             Storage::disk('public')->delete($business->logo);
@@ -120,7 +130,7 @@ new #[Title('Business settings')] class extends Component {
                     <div class="flex items-center gap-4">
                         <div class="relative size-20 overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700">
                             @if ($logo)
-                                <img src="{{ $logo->temporaryUrl() }}" alt="Logo" class="size-full object-contain">
+                                <img src="{{ $this->logoPreviewUrl() ?? '#' }}" alt="Logo" class="size-full object-contain">
                             @else
                                 <img src="{{ Storage::url($existingLogo) }}" alt="Logo" class="size-full object-contain">
                             @endif
